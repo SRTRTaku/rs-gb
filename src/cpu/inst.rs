@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub enum Inst {
     Nop,
     Stop,
@@ -5,6 +6,7 @@ pub enum Inst {
     Ld16(Arg16, Arg16),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Arg8 {
     Reg(Reg8),
     Immed(u8),
@@ -14,6 +16,8 @@ pub enum Arg8 {
     Io(u8), // FF00 + n
     IndIoC, // FF00 + C
 }
+
+#[derive(PartialEq, Debug)]
 pub enum Reg8 {
     A,
     F,
@@ -25,11 +29,13 @@ pub enum Reg8 {
     L,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Arg16 {
     Reg(Reg16),
     Immed(u16),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Reg16 {
     AF,
     BC,

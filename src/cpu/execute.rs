@@ -5,26 +5,23 @@ use crate::memory::MemoryIF;
 impl Cpu {
     pub fn execute(&mut self, inst: Inst) {
         match inst {
+            Inst::Ld8(dist, src) => self.ld8(dist, src),
             Inst::Nop => {
                 self.m = 1;
             }
             Inst::Stop => (),
-            Inst::Ld8(dist, src) => self.ld8(dist, src),
             _ => (),
         }
     }
 
     fn ld8(&mut self, dist: Arg8, src: Arg8) {
-        let v = match src {
-            Arg8::Reg(r) => match r {
-                Reg8::A => self.a,
-                _ => panic!(),
-            },
-            _ => panic!(),
-        };
-        match dist {
-            Arg8::Reg(Reg8::A) => self.a = v,
-            _ => panic!(),
+        match (dist, src) {
+            (Arg8::Reg(rd), Arg8::Reg(rs)) => {
+                self.m = 1;
+                let v = self.read_reg8(rs);
+                self.write_reg8(rd, v);
+            }
+            _ => todo!(),
         }
     }
 }
