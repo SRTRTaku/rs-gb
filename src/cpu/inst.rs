@@ -19,6 +19,9 @@ pub enum Inst {
     Nop,
     Stop,
     // Jump instructions
+    Jr(i8),
+    Jrf(FlagReg, i8),
+    Jrnf(FlagReg, i8),
 }
 
 #[derive(Debug, PartialEq)]
@@ -62,8 +65,9 @@ pub enum Reg16 {
     CP,
 }
 
-enum FlagRegister {
-    Zero,        // n
+#[derive(Debug, PartialEq)]
+pub enum FlagReg {
+    Zero,        // z
     Subtraction, // n,
     HalfCarry,   // h
     Carry,       // c
