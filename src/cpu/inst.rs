@@ -5,6 +5,8 @@ pub enum Inst {
     // 8-bit Arithmetic/ Logic instructions
     Inc8(Arg8),
     Dec8(Arg8),
+    Daa,
+    Cpl,
     // 16-bit Arithmetic/ Logic instructions
     Add16(Arg16, Arg16),
     Inc16(Arg16),
@@ -20,8 +22,7 @@ pub enum Inst {
     Stop,
     // Jump instructions
     Jr(i8),
-    Jrf(FlagReg, i8),
-    Jrnf(FlagReg, i8),
+    Jrf(JpFlag, i8),
 }
 
 #[derive(Debug, PartialEq)]
@@ -63,6 +64,14 @@ pub enum Reg16 {
     HL,
     SP,
     CP,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum JpFlag {
+    Nz,
+    Z,
+    Nc,
+    C,
 }
 
 #[derive(Debug, PartialEq)]
