@@ -21,6 +21,7 @@ pub enum Inst {
     Ccf,
     Scf,
     Nop,
+    Halt,
     Stop,
     // Jump instructions
     Jr(i8),
