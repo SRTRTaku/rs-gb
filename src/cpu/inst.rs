@@ -18,6 +18,8 @@ pub enum Inst {
     Rra,
     // Single-bit Operation instructions
     // CPU Control instructions
+    Ccf,
+    Scf,
     Nop,
     Stop,
     // Jump instructions
