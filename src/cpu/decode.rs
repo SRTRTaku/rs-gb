@@ -12,8 +12,8 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         }
         0x02 => Inst::Ld8(Arg8::IndReg(Reg16::BC), Arg8::Reg(Reg8::A)),
         0x03 => Inst::Inc16(Arg16::Reg(Reg16::BC)),
-        0x04 => Inst::Inc8(Arg8::Reg(Reg8::B)),
-        0x05 => Inst::Dec8(Arg8::Reg(Reg8::B)),
+        0x04 => Inst::Inc(Arg8::Reg(Reg8::B)),
+        0x05 => Inst::Dec(Arg8::Reg(Reg8::B)),
         0x06 => {
             let n = memory.read_byte(pc + 1);
             addvance = 2;
@@ -28,8 +28,8 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         0x09 => Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::BC)),
         0x0a => Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::BC)),
         0x0b => Inst::Dec16(Arg16::Reg(Reg16::BC)),
-        0x0c => Inst::Inc8(Arg8::Reg(Reg8::C)),
-        0x0d => Inst::Dec8(Arg8::Reg(Reg8::C)),
+        0x0c => Inst::Inc(Arg8::Reg(Reg8::C)),
+        0x0d => Inst::Dec(Arg8::Reg(Reg8::C)),
         0x0e => {
             let n = memory.read_byte(pc + 1);
             addvance = 2;
@@ -44,8 +44,8 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         }
         0x12 => Inst::Ld8(Arg8::IndReg(Reg16::DE), Arg8::Reg(Reg8::A)),
         0x13 => Inst::Inc16(Arg16::Reg(Reg16::DE)),
-        0x14 => Inst::Inc8(Arg8::Reg(Reg8::D)),
-        0x15 => Inst::Dec8(Arg8::Reg(Reg8::D)),
+        0x14 => Inst::Inc(Arg8::Reg(Reg8::D)),
+        0x15 => Inst::Dec(Arg8::Reg(Reg8::D)),
         0x16 => {
             let n = memory.read_byte(pc + 1);
             addvance = 2;
@@ -60,8 +60,8 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         0x19 => Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::DE)),
         0x1a => Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::DE)),
         0x1b => Inst::Dec16(Arg16::Reg(Reg16::DE)),
-        0x1c => Inst::Inc8(Arg8::Reg(Reg8::E)),
-        0x1d => Inst::Dec8(Arg8::Reg(Reg8::E)),
+        0x1c => Inst::Inc(Arg8::Reg(Reg8::E)),
+        0x1d => Inst::Dec(Arg8::Reg(Reg8::E)),
         0x1e => {
             let n = memory.read_byte(pc + 1);
             addvance = 2;
@@ -80,8 +80,8 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         }
         0x22 => Inst::Ld8(Arg8::IndIncHL, Arg8::Reg(Reg8::A)),
         0x23 => Inst::Inc16(Arg16::Reg(Reg16::HL)),
-        0x24 => Inst::Inc8(Arg8::Reg(Reg8::H)),
-        0x25 => Inst::Dec8(Arg8::Reg(Reg8::H)),
+        0x24 => Inst::Inc(Arg8::Reg(Reg8::H)),
+        0x25 => Inst::Dec(Arg8::Reg(Reg8::H)),
         0x26 => {
             let n = memory.read_byte(pc + 1);
             addvance = 2;
@@ -96,8 +96,8 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         0x29 => Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::HL)),
         0x2a => Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIncHL),
         0x2b => Inst::Dec16(Arg16::Reg(Reg16::HL)),
-        0x2c => Inst::Inc8(Arg8::Reg(Reg8::L)),
-        0x2d => Inst::Dec8(Arg8::Reg(Reg8::L)),
+        0x2c => Inst::Inc(Arg8::Reg(Reg8::L)),
+        0x2d => Inst::Dec(Arg8::Reg(Reg8::L)),
         0x2e => {
             let n = memory.read_byte(pc + 1);
             addvance = 2;
@@ -116,8 +116,8 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         }
         0x32 => Inst::Ld8(Arg8::IndDecHL, Arg8::Reg(Reg8::A)),
         0x33 => Inst::Inc16(Arg16::Reg(Reg16::SP)),
-        0x34 => Inst::Inc8(Arg8::IndReg(Reg16::HL)),
-        0x35 => Inst::Dec8(Arg8::IndReg(Reg16::HL)),
+        0x34 => Inst::Inc(Arg8::IndReg(Reg16::HL)),
+        0x35 => Inst::Dec(Arg8::IndReg(Reg16::HL)),
         0x36 => {
             let n = memory.read_byte(pc + 1);
             addvance = 2;
@@ -132,8 +132,8 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         0x39 => Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::SP)),
         0x3a => Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndDecHL),
         0x3b => Inst::Dec16(Arg16::Reg(Reg16::SP)),
-        0x3c => Inst::Inc8(Arg8::Reg(Reg8::A)),
-        0x3d => Inst::Dec8(Arg8::Reg(Reg8::A)),
+        0x3c => Inst::Inc(Arg8::Reg(Reg8::A)),
+        0x3d => Inst::Dec(Arg8::Reg(Reg8::A)),
         0x3e => {
             let n = memory.read_byte(pc + 1);
             addvance = 2;
@@ -304,7 +304,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x04);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Inc8(Arg8::Reg(Reg8::B)), i);
+        assert_eq!(Inst::Inc(Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -313,7 +313,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x05);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Dec8(Arg8::Reg(Reg8::B)), i);
+        assert_eq!(Inst::Dec(Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -378,7 +378,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x0c);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Inc8(Arg8::Reg(Reg8::C)), i);
+        assert_eq!(Inst::Inc(Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -387,7 +387,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x0d);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Dec8(Arg8::Reg(Reg8::C)), i);
+        assert_eq!(Inst::Dec(Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -455,7 +455,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x14);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Inc8(Arg8::Reg(Reg8::D)), i);
+        assert_eq!(Inst::Inc(Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -464,7 +464,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x15);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Dec8(Arg8::Reg(Reg8::D)), i);
+        assert_eq!(Inst::Dec(Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -529,7 +529,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x1c);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Inc8(Arg8::Reg(Reg8::E)), i);
+        assert_eq!(Inst::Inc(Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -538,7 +538,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x1d);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Dec8(Arg8::Reg(Reg8::E)), i);
+        assert_eq!(Inst::Dec(Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -607,7 +607,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x24);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Inc8(Arg8::Reg(Reg8::H)), i);
+        assert_eq!(Inst::Inc(Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -616,7 +616,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x25);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Dec8(Arg8::Reg(Reg8::H)), i);
+        assert_eq!(Inst::Dec(Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -681,7 +681,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x2c);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Inc8(Arg8::Reg(Reg8::L)), i);
+        assert_eq!(Inst::Inc(Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -690,7 +690,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x2d);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Dec8(Arg8::Reg(Reg8::L)), i);
+        assert_eq!(Inst::Dec(Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -759,7 +759,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x34);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Inc8(Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(Inst::Inc(Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -768,7 +768,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x35);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Dec8(Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(Inst::Dec(Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -833,7 +833,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x3c);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Inc8(Arg8::Reg(Reg8::A)), i);
+        assert_eq!(Inst::Inc(Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
     #[test]
@@ -842,7 +842,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x3d);
         let (i, a) = decode(pc, &m);
-        assert_eq!(Inst::Dec8(Arg8::Reg(Reg8::A)), i);
+        assert_eq!(Inst::Dec(Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
     #[test]

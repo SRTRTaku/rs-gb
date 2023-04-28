@@ -3,8 +3,12 @@ pub enum Inst {
     Ld8(Arg8, Arg8),
     Ld16(Arg16, Arg16),
     // 8-bit Arithmetic/ Logic instructions
-    Inc8(Arg8),
-    Dec8(Arg8),
+    Add(Arg8, Arg8),
+    Adc(Arg8, Arg8),
+    Sub(Arg8, Arg8),
+    Sbc(Arg8, Arg8),
+    Inc(Arg8),
+    Dec(Arg8),
     Daa,
     Cpl,
     // 16-bit Arithmetic/ Logic instructions
