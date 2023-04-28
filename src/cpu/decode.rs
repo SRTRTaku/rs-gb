@@ -140,6 +140,7 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
             Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Immed(n))
         }
         0x3f => Inst::Ccf,
+        //
         0x40 => Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::B)),
         0x41 => Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::C)),
         0x42 => Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::D)),
@@ -204,6 +205,71 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         0x7d => Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)),
         0x7e => Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)),
         0x7f => Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)),
+        //
+        0x80 => Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)),
+        0x81 => Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)),
+        0x82 => Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)),
+        0x83 => Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)),
+        0x84 => Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)),
+        0x85 => Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)),
+        0x86 => Inst::Add(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)),
+        0x87 => Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)),
+        0x88 => Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)),
+        0x89 => Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)),
+        0x8a => Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)),
+        0x8b => Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)),
+        0x8c => Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)),
+        0x8d => Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)),
+        0x8e => Inst::Adc(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)),
+        0x8f => Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)),
+        0x90 => Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)),
+        0x91 => Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)),
+        0x92 => Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)),
+        0x93 => Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)),
+        0x94 => Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)),
+        0x95 => Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)),
+        0x96 => Inst::Sub(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)),
+        0x97 => Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)),
+        0x98 => Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)),
+        0x99 => Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)),
+        0x9a => Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)),
+        0x9b => Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)),
+        0x9c => Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)),
+        0x9d => Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)),
+        0x9e => Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)),
+        0x9f => Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)),
+        0xa0 => Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)),
+        0xa1 => Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)),
+        0xa2 => Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)),
+        0xa3 => Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)),
+        0xa4 => Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)),
+        0xa5 => Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)),
+        0xa6 => Inst::And(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)),
+        0xa7 => Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)),
+        0xa8 => Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)),
+        0xa9 => Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)),
+        0xaa => Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)),
+        0xab => Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)),
+        0xac => Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)),
+        0xad => Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)),
+        0xae => Inst::Xor(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)),
+        0xaf => Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)),
+        0xb0 => Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)),
+        0xb1 => Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)),
+        0xb2 => Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)),
+        0xb3 => Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)),
+        0xb4 => Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)),
+        0xb5 => Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)),
+        0xb6 => Inst::Or(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)),
+        0xb7 => Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)),
+        0xb8 => Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)),
+        0xb9 => Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)),
+        0xba => Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)),
+        0xbb => Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)),
+        0xbc => Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)),
+        0xbd => Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)),
+        0xbe => Inst::Cp(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)),
+        0xbf => Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)),
         /*
         0x00 => todo!(),
         0x01 => todo!(),
@@ -1450,6 +1516,594 @@ mod tests {
         m.write_byte(pc, 0x7f);
         let (i, a) = decode(pc, &m);
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
+        assert_eq!(1, a);
+    }
+    //
+    // 0x80
+    //
+    #[test]
+    fn decode_add_a_b() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x80);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_add_a_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x81);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_add_a_d() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x82);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_add_a_e() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x83);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_add_a_h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x84);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_add_a_l() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x85);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_add_a_phl() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x86);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_add_a_a() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x87);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_adc_a_b() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x88);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_adc_a_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x89);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_adc_a_d() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x8a);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_adc_a_e() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x8b);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_adc_a_h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x8c);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_adc_a_l() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x8d);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_adc_a_phl() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x8e);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_adc_a_a() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x8f);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
+        assert_eq!(1, a);
+    }
+    //
+    // 0x90
+    //
+    #[test]
+    fn decode_sub_a_b() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x90);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sub_a_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x91);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sub_a_d() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x92);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sub_a_e() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x93);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sub_a_h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x94);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sub_a_l() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x95);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sub_a_phl() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x96);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sub_a_a() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x97);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sbc_a_b() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x98);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sbc_a_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x99);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sbc_a_d() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x9a);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sbc_a_e() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x9b);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sbc_a_h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x9c);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sbc_a_l() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x9d);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sbc_a_phl() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x9e);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sbc_a_a() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0x9f);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
+        assert_eq!(1, a);
+    }
+    //
+    // 0xa0
+    //
+    #[test]
+    fn decode_and_a_b() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa0);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_and_a_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa1);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_and_a_d() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa2);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_and_a_e() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa3);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_and_a_h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa4);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_and_a_l() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa5);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_and_a_phl() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa6);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_and_a_a() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa7);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_xor_a_b() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa8);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_xor_a_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xa9);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_xor_a_d() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xaa);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_xor_a_e() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xab);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_xor_a_h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xac);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_xor_a_l() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xad);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_xor_a_phl() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xae);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_xor_a_a() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xaf);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
+        assert_eq!(1, a);
+    }
+    //
+    // 0xb0
+    //
+    #[test]
+    fn decode_or_a_b() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb0);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_or_a_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb1);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_or_a_d() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb2);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_or_a_e() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb3);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_or_a_h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb4);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_or_a_l() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb5);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_or_a_phl() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb6);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_or_a_a() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb7);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_cp_a_b() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb8);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_cp_a_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xb9);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_cp_a_d() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xba);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_cp_a_e() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xbb);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_cp_a_h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xbc);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_cp_a_l() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xbd);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_cp_a_phl() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xbe);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_cp_a_a() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xbf);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
 }
