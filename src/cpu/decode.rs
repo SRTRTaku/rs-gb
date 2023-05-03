@@ -2,7 +2,7 @@ use super::decode_prefix_cb as pf_cb;
 use super::inst::{Arg16, Arg8, Inst, JpFlag, Reg16, Reg8};
 use crate::memory::MemoryIF;
 
-pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
+pub fn decode(pc: u16, memory: &impl MemoryIF) -> Result<(Inst, u16), String> {
     let mut addvance = 1;
     let inst = match memory.read_byte(pc) {
         0x00 => Inst::Nop,
@@ -382,9 +382,9 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         0x0e => todo!(),
         0x0f => todo!(),
         */
-        code => panic!("Invalid code: {:#x}", code),
+        code => return Err(format!("Invalid code: {:#x}", code)),
     };
-    (inst, addvance)
+    Ok((inst, addvance))
 }
 
 #[cfg(test)]
@@ -426,7 +426,7 @@ mod tests {
     fn decode_nop() {
         let m = TestMemory::new();
         let pc = 0x0100;
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Nop, i);
         assert_eq!(1, a);
     }
@@ -436,7 +436,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x01);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld16(Arg16::Reg(Reg16::BC), Arg16::Immed(0x1234)), i);
         assert_eq!(3, a);
     }
@@ -445,7 +445,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x02);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::BC), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -454,7 +454,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x03);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc16(Arg16::Reg(Reg16::BC)), i);
         assert_eq!(1, a);
     }
@@ -463,7 +463,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x04);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc(Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -472,7 +472,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x05);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec(Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -482,7 +482,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x06);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -491,7 +491,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x07);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rlca, i);
         assert_eq!(1, a);
     }
@@ -501,7 +501,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x08);
         m.write_word(pc + 1, 0x0200);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld16(Arg16::Ind(0x0200), Arg16::Reg(Reg16::SP)), i);
         assert_eq!(3, a);
     }
@@ -510,7 +510,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x09);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::BC)), i);
         assert_eq!(1, a);
     }
@@ -519,7 +519,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x0a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::BC)), i);
         assert_eq!(1, a);
     }
@@ -528,7 +528,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x0b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec16(Arg16::Reg(Reg16::BC)), i);
         assert_eq!(1, a);
     }
@@ -537,7 +537,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x0c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc(Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -546,7 +546,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x0d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec(Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -556,7 +556,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x0e);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::C), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -565,7 +565,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x0f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rrca, i);
         assert_eq!(1, a);
     }
@@ -577,7 +577,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x10);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Stop, i);
         assert_eq!(1, a);
     }
@@ -587,7 +587,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x11);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld16(Arg16::Reg(Reg16::DE), Arg16::Immed(0x1234)), i);
         assert_eq!(3, a);
     }
@@ -596,7 +596,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::DE), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -605,7 +605,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x13);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc16(Arg16::Reg(Reg16::DE)), i);
         assert_eq!(1, a);
     }
@@ -614,7 +614,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x14);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc(Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -623,7 +623,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x15);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec(Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -633,7 +633,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x16);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::D), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -642,7 +642,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x17);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rla, i);
         assert_eq!(1, a);
     }
@@ -652,7 +652,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x18);
         m.write_byte(pc + 1, 0xff);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jr(-1), i);
         assert_eq!(2, a);
     }
@@ -661,7 +661,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x19);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::DE)), i);
         assert_eq!(1, a);
     }
@@ -670,7 +670,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x1a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::DE)), i);
         assert_eq!(1, a);
     }
@@ -679,7 +679,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x1b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec16(Arg16::Reg(Reg16::DE)), i);
         assert_eq!(1, a);
     }
@@ -688,7 +688,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x1c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc(Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -697,7 +697,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x1d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec(Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -707,7 +707,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x1e);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::E), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -716,7 +716,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x1f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rra, i);
         assert_eq!(1, a);
     }
@@ -729,7 +729,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x20);
         m.write_byte(pc + 1, 0xff);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jrf(JpFlag::Nz, -1), i);
         assert_eq!(2, a);
     }
@@ -739,7 +739,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x21);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld16(Arg16::Reg(Reg16::HL), Arg16::Immed(0x1234)), i);
         assert_eq!(3, a);
     }
@@ -748,7 +748,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x22);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndIncHL, Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -757,7 +757,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x23);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc16(Arg16::Reg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -766,7 +766,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x24);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc(Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -775,7 +775,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x25);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec(Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -785,7 +785,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x26);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::H), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -794,7 +794,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x27);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Daa, i);
         assert_eq!(1, a);
     }
@@ -804,7 +804,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x28);
         m.write_byte(pc + 1, 0xff);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jrf(JpFlag::Z, -1), i);
         assert_eq!(2, a);
     }
@@ -813,7 +813,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x29);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -822,7 +822,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x2a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIncHL), i);
         assert_eq!(1, a);
     }
@@ -831,7 +831,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x2b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec16(Arg16::Reg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -840,7 +840,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x2c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc(Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -849,7 +849,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x2d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec(Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -859,7 +859,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x2e);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::L), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -868,7 +868,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x2f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Cpl, i);
         assert_eq!(1, a);
     }
@@ -881,7 +881,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x30);
         m.write_byte(pc + 1, 0xff);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jrf(JpFlag::Nc, -1), i);
         assert_eq!(2, a);
     }
@@ -891,7 +891,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x31);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld16(Arg16::Reg(Reg16::SP), Arg16::Immed(0x1234)), i);
         assert_eq!(3, a);
     }
@@ -900,7 +900,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x32);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndDecHL, Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -909,7 +909,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x33);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc16(Arg16::Reg(Reg16::SP)), i);
         assert_eq!(1, a);
     }
@@ -918,7 +918,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x34);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc(Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -927,7 +927,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x35);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec(Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -937,7 +937,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x36);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -946,7 +946,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x37);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Scf, i);
         assert_eq!(1, a);
     }
@@ -956,7 +956,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x38);
         m.write_byte(pc + 1, 0xff);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jrf(JpFlag::C, -1), i);
         assert_eq!(2, a);
     }
@@ -965,7 +965,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x39);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::SP)), i);
         assert_eq!(1, a);
     }
@@ -974,7 +974,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x3a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndDecHL), i);
         assert_eq!(1, a);
     }
@@ -983,7 +983,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x3b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec16(Arg16::Reg(Reg16::SP)), i);
         assert_eq!(1, a);
     }
@@ -992,7 +992,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x3c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Inc(Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1001,7 +1001,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x3d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Dec(Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1011,7 +1011,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0x3e);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -1020,7 +1020,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x3f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ccf, i);
         assert_eq!(1, a);
     }
@@ -1032,7 +1032,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x40);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1041,7 +1041,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x41);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1050,7 +1050,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x42);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1059,7 +1059,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x43);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1068,7 +1068,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x44);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1077,7 +1077,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x45);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1086,7 +1086,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x46);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1095,7 +1095,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x47);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::B), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1104,7 +1104,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x48);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::C), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1113,7 +1113,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x49);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::C), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1122,7 +1122,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x4a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::C), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1131,7 +1131,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x4b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::C), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1140,7 +1140,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x4c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::C), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1149,7 +1149,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x4d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::C), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1158,7 +1158,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x4e);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::C), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1167,7 +1167,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x4f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::C), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1179,7 +1179,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x50);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::D), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1188,7 +1188,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x51);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::D), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1197,7 +1197,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x52);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::D), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1206,7 +1206,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x53);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::D), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1215,7 +1215,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x54);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::D), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1224,7 +1224,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x55);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::D), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1233,7 +1233,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x56);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::D), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1242,7 +1242,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x57);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::D), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1251,7 +1251,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x58);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::E), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1260,7 +1260,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x59);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::E), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1269,7 +1269,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x5a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::E), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1278,7 +1278,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x5b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::E), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1287,7 +1287,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x5c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::E), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1296,7 +1296,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x5d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::E), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1305,7 +1305,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x5e);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::E), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1314,7 +1314,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x5f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::E), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1326,7 +1326,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x60);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::H), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1335,7 +1335,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x61);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::H), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1344,7 +1344,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x62);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::H), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1353,7 +1353,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x63);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::H), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1362,7 +1362,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x64);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::H), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1371,7 +1371,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x65);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::H), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1380,7 +1380,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x66);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::H), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1389,7 +1389,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x67);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::H), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1398,7 +1398,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x68);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::L), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1407,7 +1407,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x69);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::L), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1416,7 +1416,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x6a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::L), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1425,7 +1425,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x6b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::L), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1434,7 +1434,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x6c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::L), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1443,7 +1443,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x6d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::L), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1452,7 +1452,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x6e);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::L), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1461,7 +1461,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x6f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::L), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1473,7 +1473,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x70);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1482,7 +1482,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x71);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1491,7 +1491,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x72);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1500,7 +1500,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x73);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1509,7 +1509,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x74);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1518,7 +1518,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x75);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1527,7 +1527,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x76);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Halt, i);
         assert_eq!(1, a);
     }
@@ -1536,7 +1536,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x77);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1545,7 +1545,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x78);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1554,7 +1554,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x79);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1563,7 +1563,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x7a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1572,7 +1572,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x7b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1581,7 +1581,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x7c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1590,7 +1590,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x7d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1599,7 +1599,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x7e);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1608,7 +1608,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x7f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1620,7 +1620,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x80);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1629,7 +1629,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x81);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1638,7 +1638,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x82);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1647,7 +1647,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x83);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1656,7 +1656,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x84);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1665,7 +1665,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x85);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1674,7 +1674,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x86);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1683,7 +1683,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x87);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1692,7 +1692,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x88);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1701,7 +1701,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x89);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1710,7 +1710,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x8a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1719,7 +1719,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x8b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1728,7 +1728,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x8c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1737,7 +1737,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x8d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1746,7 +1746,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x8e);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1755,7 +1755,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x8f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1767,7 +1767,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x90);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1776,7 +1776,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x91);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1785,7 +1785,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x92);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1794,7 +1794,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x93);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1803,7 +1803,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x94);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1812,7 +1812,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x95);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1821,7 +1821,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x96);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1830,7 +1830,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x97);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1839,7 +1839,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x98);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1848,7 +1848,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x99);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1857,7 +1857,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x9a);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1866,7 +1866,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x9b);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1875,7 +1875,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x9c);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1884,7 +1884,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x9d);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1893,7 +1893,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x9e);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1902,7 +1902,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0x9f);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1914,7 +1914,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa0);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1923,7 +1923,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa1);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -1932,7 +1932,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa2);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -1941,7 +1941,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa3);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -1950,7 +1950,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa4);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -1959,7 +1959,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa5);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -1968,7 +1968,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa6);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -1977,7 +1977,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa7);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::And(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -1986,7 +1986,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa8);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -1995,7 +1995,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xa9);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -2004,7 +2004,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xaa);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -2013,7 +2013,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xab);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -2022,7 +2022,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xac);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -2031,7 +2031,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xad);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -2040,7 +2040,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xae);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -2049,7 +2049,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xaf);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -2061,7 +2061,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb0);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -2070,7 +2070,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb1);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -2079,7 +2079,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb2);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -2088,7 +2088,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb3);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -2097,7 +2097,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb4);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -2106,7 +2106,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb5);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -2115,7 +2115,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb6);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -2124,7 +2124,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb7);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -2133,7 +2133,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb8);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B)), i);
         assert_eq!(1, a);
     }
@@ -2142,7 +2142,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xb9);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C)), i);
         assert_eq!(1, a);
     }
@@ -2151,7 +2151,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xba);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D)), i);
         assert_eq!(1, a);
     }
@@ -2160,7 +2160,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xbb);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::E)), i);
         assert_eq!(1, a);
     }
@@ -2169,7 +2169,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xbc);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::H)), i);
         assert_eq!(1, a);
     }
@@ -2178,7 +2178,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xbd);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::L)), i);
         assert_eq!(1, a);
     }
@@ -2187,7 +2187,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xbe);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL)), i);
         assert_eq!(1, a);
     }
@@ -2196,7 +2196,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xbf);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::A)), i);
         assert_eq!(1, a);
     }
@@ -2208,7 +2208,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xc0);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Retf(JpFlag::Nz), i);
         assert_eq!(1, a);
     }
@@ -2217,7 +2217,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xc1);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Pop16(Reg16::BC), i);
         assert_eq!(1, a);
     }
@@ -2227,7 +2227,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xc2);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jpf(JpFlag::Nz, 0x1234), i);
         assert_eq!(3, a);
     }
@@ -2237,7 +2237,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xc3);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jp(0x1234), i);
         assert_eq!(3, a);
     }
@@ -2247,7 +2247,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xc4);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Callf(JpFlag::Nz, 0x1234), i);
         assert_eq!(3, a);
     }
@@ -2256,7 +2256,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xc5);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Push16(Reg16::BC), i);
         assert_eq!(1, a);
     }
@@ -2266,7 +2266,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xc6);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Add(Arg8::Reg(Reg8::A), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -2275,7 +2275,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xc7);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rst(0x00), i);
         assert_eq!(1, a);
     }
@@ -2284,7 +2284,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xc8);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Retf(JpFlag::Z), i);
         assert_eq!(1, a);
     }
@@ -2293,7 +2293,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xc9);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Ret, i);
         assert_eq!(1, a);
     }
@@ -2303,7 +2303,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xca);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jpf(JpFlag::Z, 0x1234), i);
         assert_eq!(3, a);
     }
@@ -2313,7 +2313,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xcb);
         m.write_byte(pc + 1, 0x00);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rlc(Arg8::Reg(Reg8::B)), i);
         assert_eq!(2, a);
     }
@@ -2323,7 +2323,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xcb);
         m.write_byte(pc + 1, 0xff);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Set(7, Arg8::Reg(Reg8::A)), i);
         assert_eq!(2, a);
     }
@@ -2333,7 +2333,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xcc);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Callf(JpFlag::Z, 0x1234), i);
         assert_eq!(3, a);
     }
@@ -2343,7 +2343,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xcd);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Call(0x1234), i);
         assert_eq!(3, a);
     }
@@ -2353,7 +2353,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xce);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -2362,7 +2362,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xcf);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rst(0x08), i);
         assert_eq!(1, a);
     }
@@ -2374,7 +2374,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xd0);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Retf(JpFlag::Nc), i);
         assert_eq!(1, a);
     }
@@ -2383,7 +2383,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xd1);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Pop16(Reg16::DE), i);
         assert_eq!(1, a);
     }
@@ -2393,17 +2393,17 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xd2);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jpf(JpFlag::Nc, 0x1234), i);
         assert_eq!(3, a);
     }
     #[test]
-    #[should_panic(expected = "Invalid code: 0xd3")]
     fn decode_0xd3() {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xd3);
-        let (i, a) = decode(pc, &m);
+        let r = decode(pc, &m);
+        assert_eq!(Err("Invalid code: 0xd3".to_string()), r);
     }
     #[test]
     fn decode_call_nc_u16() {
@@ -2411,7 +2411,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xd4);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Callf(JpFlag::Nc, 0x1234), i);
         assert_eq!(3, a);
     }
@@ -2420,7 +2420,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xd5);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Push16(Reg16::DE), i);
         assert_eq!(1, a);
     }
@@ -2430,7 +2430,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xd6);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -2439,7 +2439,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xd7);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rst(0x10), i);
         assert_eq!(1, a);
     }
@@ -2448,7 +2448,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xd8);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Retf(JpFlag::C), i);
         assert_eq!(1, a);
     }
@@ -2457,7 +2457,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xd9);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Reti, i);
         assert_eq!(1, a);
     }
@@ -2467,17 +2467,17 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xda);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Jpf(JpFlag::C, 0x1234), i);
         assert_eq!(3, a);
     }
     #[test]
-    #[should_panic(expected = "Invalid code: 0xdb")]
     fn decode_0xdb() {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xdb);
-        let (i, a) = decode(pc, &m);
+        let r = decode(pc, &m);
+        assert_eq!(Err("Invalid code: 0xdb".to_string()), r);
     }
     #[test]
     fn decode_call_c_u16() {
@@ -2485,17 +2485,17 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xdc);
         m.write_word(pc + 1, 0x1234);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Callf(JpFlag::C, 0x1234), i);
         assert_eq!(3, a);
     }
     #[test]
-    #[should_panic(expected = "Invalid code: 0xdd")]
     fn decode_0xdd() {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xdd);
-        let (i, a) = decode(pc, &m);
+        let r = decode(pc, &m);
+        assert_eq!(Err("Invalid code: 0xdd".to_string()), r);
     }
     #[test]
     fn decode_sbc_a_u8() {
@@ -2503,7 +2503,7 @@ mod tests {
         let pc = 0x0100;
         m.write_byte(pc, 0xde);
         m.write_byte(pc + 1, 0x12);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Immed(0x12)), i);
         assert_eq!(2, a);
     }
@@ -2512,7 +2512,7 @@ mod tests {
         let mut m = TestMemory::new();
         let pc = 0x0100;
         m.write_byte(pc, 0xdf);
-        let (i, a) = decode(pc, &m);
+        let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rst(0x18), i);
         assert_eq!(1, a);
     }

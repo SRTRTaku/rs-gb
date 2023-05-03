@@ -40,10 +40,11 @@ impl Cpu {
             m: 0,
         }
     }
-    pub fn run(&mut self, memory: &impl MemoryIF) {
-        let (inst, addvance) = decode::decode(self.pc, memory);
+    pub fn run(&mut self, memory: &impl MemoryIF) -> Result<(), String> {
+        let (inst, addvance) = decode::decode(self.pc, memory)?;
         self.pc += addvance;
         self.execute(inst);
+        Ok(())
     }
     fn read_reg8(&self, r: Reg8) -> u8 {
         match r {
