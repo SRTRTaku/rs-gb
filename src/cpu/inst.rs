@@ -2,6 +2,8 @@
 pub enum Inst {
     Ld8(Arg8, Arg8),
     Ld16(Arg16, Arg16),
+    Push16(Reg16),
+    Pop16(Reg16),
     // 8-bit Arithmetic/ Logic instructions
     Add(Arg8, Arg8),
     Adc(Arg8, Arg8),
@@ -32,8 +34,21 @@ pub enum Inst {
     Halt,
     Stop,
     // Jump instructions
+    Jp(u16),
+    JpHL,
+    Jpf(JpFlag, u16),
     Jr(i8),
     Jrf(JpFlag, i8),
+    Call(u16),
+    Callf(JpFlag, u16),
+    Ret,
+    Retf(JpFlag),
+    Reti,
+    Rst(u8),
+    // Rotate and Shift instructions
+    Rlc(Arg8),
+    // Sighle-bit Operation instructions
+    Set(u8, Arg8),
 }
 
 #[derive(Debug, PartialEq)]

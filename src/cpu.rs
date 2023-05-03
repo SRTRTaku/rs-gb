@@ -1,4 +1,5 @@
 mod decode;
+mod decode_prefix_cb;
 mod execute;
 mod inst;
 use crate::memory::MemoryIF;
