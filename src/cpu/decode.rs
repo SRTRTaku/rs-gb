@@ -324,6 +324,46 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
             Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Immed(n))
         }
         0xcf => Inst::Rst(0x08),
+        0xd0 => Inst::Retf(JpFlag::Nc),
+        0xd1 => Inst::Pop16(Reg16::DE),
+        0xd2 => {
+            let nn = memory.read_word(pc + 1);
+            addvance = 3;
+            Inst::Jpf(JpFlag::Nc, nn)
+        }
+        // 0xd3
+        0xd4 => {
+            let nn = memory.read_word(pc + 1);
+            addvance = 3;
+            Inst::Callf(JpFlag::Nc, nn)
+        }
+        0xd5 => Inst::Push16(Reg16::DE),
+        0xd6 => {
+            let n = memory.read_byte(pc + 1);
+            addvance = 2;
+            Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Immed(n))
+        }
+        0xd7 => Inst::Rst(0x10),
+        0xd8 => Inst::Retf(JpFlag::C),
+        0xd9 => Inst::Reti,
+        0xda => {
+            let nn = memory.read_word(pc + 1);
+            addvance = 3;
+            Inst::Jpf(JpFlag::C, nn)
+        }
+        // 0xdb
+        0xdc => {
+            let nn = memory.read_word(pc + 1);
+            addvance = 3;
+            Inst::Callf(JpFlag::C, nn)
+        }
+        // 0xdd
+        0xde => {
+            let n = memory.read_byte(pc + 1);
+            addvance = 2;
+            Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Immed(n))
+        }
+        0xdf => Inst::Rst(0x18),
         /*
         0x00 => todo!(),
         0x01 => todo!(),
@@ -342,7 +382,7 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> (Inst, u16) {
         0x0e => todo!(),
         0x0f => todo!(),
         */
-        _ => todo!(),
+        code => panic!("Invalid code: {:#x}", code),
     };
     (inst, addvance)
 }
@@ -2324,6 +2364,156 @@ mod tests {
         m.write_byte(pc, 0xcf);
         let (i, a) = decode(pc, &m);
         assert_eq!(Inst::Rst(0x08), i);
+        assert_eq!(1, a);
+    }
+    //
+    // 0xd0
+    //
+    #[test]
+    fn decode_ret_nc() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd0);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Retf(JpFlag::Nc), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_pop_de() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd1);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Pop16(Reg16::DE), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_jp_nc_u16() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd2);
+        m.write_word(pc + 1, 0x1234);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Jpf(JpFlag::Nc, 0x1234), i);
+        assert_eq!(3, a);
+    }
+    #[test]
+    #[should_panic(expected = "Invalid code: 0xd3")]
+    fn decode_0xd3() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd3);
+        let (i, a) = decode(pc, &m);
+    }
+    #[test]
+    fn decode_call_nc_u16() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd4);
+        m.write_word(pc + 1, 0x1234);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Callf(JpFlag::Nc, 0x1234), i);
+        assert_eq!(3, a);
+    }
+    #[test]
+    fn decode_push_de() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd5);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Push16(Reg16::DE), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_sub_a_u8() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd6);
+        m.write_byte(pc + 1, 0x12);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Immed(0x12)), i);
+        assert_eq!(2, a);
+    }
+    #[test]
+    fn decode_rst_10h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd7);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Rst(0x10), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_ret_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd8);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Retf(JpFlag::C), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_reti() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xd9);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Reti, i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_jp_c_u16() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xda);
+        m.write_word(pc + 1, 0x1234);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Jpf(JpFlag::C, 0x1234), i);
+        assert_eq!(3, a);
+    }
+    #[test]
+    #[should_panic(expected = "Invalid code: 0xdb")]
+    fn decode_0xdb() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xdb);
+        let (i, a) = decode(pc, &m);
+    }
+    #[test]
+    fn decode_call_c_u16() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xdc);
+        m.write_word(pc + 1, 0x1234);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Callf(JpFlag::C, 0x1234), i);
+        assert_eq!(3, a);
+    }
+    #[test]
+    #[should_panic(expected = "Invalid code: 0xdd")]
+    fn decode_0xdd() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xdd);
+        let (i, a) = decode(pc, &m);
+    }
+    #[test]
+    fn decode_sbc_a_u8() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xde);
+        m.write_byte(pc + 1, 0x12);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Immed(0x12)), i);
+        assert_eq!(2, a);
+    }
+    #[test]
+    fn decode_rst_18h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xdf);
+        let (i, a) = decode(pc, &m);
+        assert_eq!(Inst::Rst(0x18), i);
         assert_eq!(1, a);
     }
 }
