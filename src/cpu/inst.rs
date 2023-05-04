@@ -21,6 +21,8 @@ pub enum Inst {
     Add16(Arg16, Arg16),
     Inc16(Arg16),
     Dec16(Arg16),
+    Add16SP(i8),
+    Ld16HLSP(i8),
     // Rotate and Shift instructions
     Rlca,
     Rla,
@@ -59,8 +61,8 @@ pub enum Arg8 {
     IndReg(Reg16),
     IndIncHL,
     IndDecHL,
-    Io(u8), // FF00 + n
-    IndIoC, // FF00 + C
+    IndIo(u8), // FF00 + n
+    IndIoC,    // FF00 + C
 }
 
 #[derive(PartialEq, Debug)]
