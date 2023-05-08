@@ -400,24 +400,42 @@ pub fn decode(pc: u16, memory: &impl MemoryIF) -> Result<(Inst, u16), String> {
             Inst::Xor(Arg8::Reg(Reg8::A), Arg8::Immed(n))
         }
         0xef => Inst::Rst(0x28),
-        /*
-        0x00 => todo!(),
-        0x01 => todo!(),
-        0x02 => todo!(),
-        0x03 => todo!(),
-        0x04 => todo!(),
-        0x05 => todo!(),
-        0x06 => todo!(),
-        0x07 => todo!(),
-        0x08 => todo!(),
-        0x09 => todo!(),
-        0x0a => todo!(),
-        0x0b => todo!(),
-        0x0c => todo!(),
-        0x0d => todo!(),
-        0x0e => todo!(),
-        0x0f => todo!(),
-        */
+        0xf0 => {
+            let n = memory.read_byte(pc + 1);
+            addvance = 2;
+            Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIo(n))
+        }
+        0xf1 => Inst::Pop16(Reg16::AF),
+        0xf2 => Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIoC),
+        0xf3 => Inst::Di,
+        // 0xf4
+        0xf5 => Inst::Push16(Reg16::AF),
+        0xf6 => {
+            let n = memory.read_byte(pc + 1);
+            addvance = 2;
+            Inst::Or(Arg8::Reg(Reg8::A), Arg8::Immed(n))
+        }
+        0xf7 => Inst::Rst(0x30),
+        0xf8 => {
+            let n = memory.read_byte(pc + 1);
+            addvance = 2;
+            Inst::Ld16HLSP(n as i8)
+        }
+        0xf9 => Inst::Ld16(Arg16::Reg(Reg16::SP), Arg16::Reg(Reg16::HL)),
+        0xfa => {
+            let nn = memory.read_word(pc + 1);
+            addvance = 3;
+            Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Ind(nn))
+        }
+        0xfb => Inst::Ei,
+        // 0xfc
+        // 0xfd
+        0xfe => {
+            let n = memory.read_byte(pc + 1);
+            addvance = 2;
+            Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Immed(n))
+        }
+        0xff => Inst::Rst(0x38),
         code => return Err(format!("Invalid code: {:#x}", code)),
     };
     Ok((inst, addvance))
@@ -2697,6 +2715,155 @@ mod tests {
         m.write_byte(pc, 0xef);
         let (i, a) = decode(pc, &m).unwrap();
         assert_eq!(Inst::Rst(0x28), i);
+        assert_eq!(1, a);
+    }
+    //
+    // 0xf0
+    //
+    #[test]
+    fn decode_ld_a_ff00_u8() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf0);
+        m.write_byte(pc + 1, 0x12);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIo(0x12)), i);
+        assert_eq!(2, a);
+    }
+    #[test]
+    fn decode_pop_af() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf1);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Pop16(Reg16::AF), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_ld_a_ff00_c() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf2);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIoC), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_di() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf3);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Di, i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_0xf4() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf4);
+        let r = decode(pc, &m);
+        assert_eq!(Err("Invalid code: 0xf4".to_string()), r);
+    }
+    #[test]
+    fn decode_push_af() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf5);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Push16(Reg16::AF), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_or_a_u8() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf6);
+        m.write_byte(pc + 1, 0x12);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Or(Arg8::Reg(Reg8::A), Arg8::Immed(0x12)), i);
+        assert_eq!(2, a);
+    }
+    #[test]
+    fn decode_rst_30h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf7);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Rst(0x30), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_ld_hl_sp_i8() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf8);
+        m.write_byte(pc + 1, 0xff);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Ld16HLSP(-1), i);
+        assert_eq!(2, a);
+    }
+    #[test]
+    fn decode_ld_sp_hl() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xf9);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Ld16(Arg16::Reg(Reg16::SP), Arg16::Reg(Reg16::HL)), i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_ld_a_pu16() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xfa);
+        m.write_word(pc + 1, 0x1234);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Ind(0x1234)), i);
+        assert_eq!(3, a);
+    }
+    #[test]
+    fn decode_ei() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xfb);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Ei, i);
+        assert_eq!(1, a);
+    }
+    #[test]
+    fn decode_0xfc() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xfc);
+        let r = decode(pc, &m);
+        assert_eq!(Err("Invalid code: 0xfc".to_string()), r);
+    }
+    #[test]
+    fn decode_0xfd() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xfd);
+        let r = decode(pc, &m);
+        assert_eq!(Err("Invalid code: 0xfd".to_string()), r);
+    }
+    #[test]
+    fn decode_cp_a_u8() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xfe);
+        m.write_byte(pc + 1, 0x12);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Immed(0x12)), i);
+        assert_eq!(2, a);
+    }
+    #[test]
+    fn decode_rst_38h() {
+        let mut m = TestMemory::new();
+        let pc = 0x0100;
+        m.write_byte(pc, 0xff);
+        let (i, a) = decode(pc, &m).unwrap();
+        assert_eq!(Inst::Rst(0x38), i);
         assert_eq!(1, a);
     }
 }

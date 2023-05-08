@@ -35,6 +35,8 @@ pub enum Inst {
     Nop,
     Halt,
     Stop,
+    Di, // disable interrupts, IME = 0
+    Ei, // enable interrupts, IME = 1
     // Jump instructions
     Jp(u16),
     JpHL,
