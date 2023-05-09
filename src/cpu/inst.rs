@@ -28,7 +28,18 @@ pub enum Inst {
     Rla,
     Rrca,
     Rra,
-    // Single-bit Operation instructions
+    Rlc(Arg8),
+    Rl(Arg8),
+    Rrc(Arg8),
+    Rr(Arg8),
+    Sla(Arg8),
+    Swap(Arg8),
+    Sra(Arg8),
+    Srl(Arg8),
+    // Sighle-bit Operation instructions
+    Bit(u8, Arg8),
+    Set(u8, Arg8),
+    Res(u8, Arg8),
     // CPU Control instructions
     Ccf,
     Scf,
@@ -49,10 +60,6 @@ pub enum Inst {
     Retf(JpFlag),
     Reti,
     Rst(u8),
-    // Rotate and Shift instructions
-    Rlc(Arg8),
-    // Sighle-bit Operation instructions
-    Set(u8, Arg8),
 }
 
 #[derive(Debug, PartialEq)]
