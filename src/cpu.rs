@@ -5,9 +5,33 @@ mod inst;
 use crate::memory::MemoryIF;
 use inst::{Reg16, Reg8};
 
+type M = usize;
 pub struct Cpu {
-    clock_m: usize,
+    clock_m: M,
     // t = 4m
+    reg: Registers,
+    // Clock for last instr
+    m: M,
+    // t = 4m
+}
+
+impl Cpu {
+    pub fn new() -> Cpu {
+        Cpu {
+            clock_m: 0,
+            reg: Registers::new(),
+            m: 0,
+        }
+    }
+    pub fn run(&mut self, memory: &impl MemoryIF) -> Result<(), String> {
+        let (inst, addvance) = decode::decode(self.reg.pc, memory)?;
+        self.reg.pc += addvance;
+        let m = self.reg.execute(inst, memory);
+        Ok(())
+    }
+}
+
+pub struct Registers {
     a: u8,
     b: u8,
     c: u8,
@@ -18,15 +42,11 @@ pub struct Cpu {
     f: u8,
     pc: u16,
     sp: u16,
-    // Clock for last instr
-    m: usize,
-    // t = 4m
 }
 
-impl Cpu {
-    pub fn new() -> Cpu {
-        Cpu {
-            clock_m: 0,
+impl Registers {
+    pub fn new() -> Registers {
+        Registers {
             a: 0,
             b: 0,
             c: 0,
@@ -37,14 +57,7 @@ impl Cpu {
             f: 0,
             pc: 0,
             sp: 0,
-            m: 0,
         }
-    }
-    pub fn run(&mut self, memory: &impl MemoryIF) -> Result<(), String> {
-        let (inst, addvance) = decode::decode(self.pc, memory)?;
-        self.pc += addvance;
-        self.execute(inst);
-        Ok(())
     }
     fn read_reg8(&self, r: Reg8) -> u8 {
         match r {
