@@ -77,7 +77,7 @@ pub enum Arg8 {
 #[derive(PartialEq, Debug)]
 pub enum Reg8 {
     A,
-    F,
+    // F, not specified
     B,
     C,
     D,

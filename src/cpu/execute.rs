@@ -25,3 +25,48 @@ impl Registers {
         m
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestMemory {
+        memory: [u8; 0x200],
+    }
+    impl TestMemory {
+        fn new() -> TestMemory {
+            TestMemory { memory: [0; 0x200] }
+        }
+    }
+    impl MemoryIF for TestMemory {
+        fn read_byte(&self, addr: u16) -> u8 {
+            self.memory[addr as usize]
+        }
+        fn read_word(&self, addr: u16) -> u16 {
+            let h = self.memory[addr as usize] as u16;
+            let l = self.memory[addr as usize + 1] as u16;
+            (h << 8) | l
+        }
+        fn write_byte(&mut self, addr: u16, val: u8) {
+            self.memory[addr as usize] = val;
+        }
+        fn write_word(&mut self, addr: u16, val: u16) {
+            let h = (val >> 8) as u8;
+            let l = (val & 0x00ff) as u8;
+            self.memory[addr as usize] = h;
+            self.memory[addr as usize + 1] = l;
+        }
+    }
+
+    #[test]
+    fn ld8_r_r() {
+        let mut reg = Registers::new();
+        let mem = TestMemory::new();
+
+        reg.write_reg8(Reg8::B, 0x12);
+        let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B));
+        let m = reg.execute(i, &mem);
+        assert_eq!(1, m);
+        assert_eq!(0x12, reg.read_reg8(Reg8::A));
+    }
+}

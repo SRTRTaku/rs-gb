@@ -68,7 +68,6 @@ impl Registers {
             Reg8::E => self.e,
             Reg8::H => self.h,
             Reg8::L => self.l,
-            Reg8::F => self.f,
         }
     }
     fn write_reg8(&mut self, r: Reg8, v: u8) {
@@ -80,7 +79,6 @@ impl Registers {
             Reg8::E => self.e = v,
             Reg8::H => self.h = v,
             Reg8::L => self.l = v,
-            Reg8::F => self.f = v,
         }
     }
     fn read_reg16(&self, r: Reg16) -> u16 {
