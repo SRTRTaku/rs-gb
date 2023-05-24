@@ -114,12 +114,12 @@ impl Registers {
                 self.c = v1;
             }
             Reg16::DE => {
-                self.b = v0;
-                self.c = v1;
+                self.d = v0;
+                self.e = v1;
             }
             Reg16::HL => {
-                self.b = v0;
-                self.c = v1;
+                self.h = v0;
+                self.l = v1;
             }
             // Reg16::CP
             Reg16::SP => self.sp = v,
