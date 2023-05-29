@@ -23,7 +23,7 @@ impl Cpu {
             m: 0,
         }
     }
-    pub fn run(&mut self, memory: &impl MemoryIF) -> Result<(), String> {
+    pub fn run(&mut self, memory: &mut impl MemoryIF) -> Result<(), String> {
         let (inst, addvance) = decode::decode(self.reg.pc, memory)?;
         self.reg.pc += addvance;
         let m = self.reg.execute(inst, memory);
