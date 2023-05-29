@@ -36,6 +36,11 @@ impl Registers {
                 memory.write_byte(hl, v);
                 2
             }
+            (Arg8::IndReg(Reg16::HL), Arg8::Immed(n)) => {
+                let hl = self.read_reg16(Reg16::HL);
+                memory.write_byte(hl, n);
+                3
+            }
             _ => todo!(),
         };
         m
@@ -117,6 +122,17 @@ mod tests {
         let i = Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::A));
         let m = reg.execute(i, &mut mem);
         assert_eq!(2, m);
+        assert_eq!(0x12, mem.read_byte(0x100));
+    }
+    #[test]
+    fn ld8_phl_n() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(Reg16::HL, 0x100);
+        let i = Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Immed(0x12));
+        let m = reg.execute(i, &mut mem);
+        assert_eq!(3, m);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
 }
