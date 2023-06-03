@@ -41,6 +41,28 @@ impl Registers {
                 memory.write_byte(hl, n);
                 3
             }
+            (Arg8::Reg(Reg8::A), Arg8::IndReg(r)) if r == Reg16::BC || r == Reg16::DE => {
+                let addr = self.read_reg16(r);
+                let v = memory.read_byte(addr);
+                self.write_reg8(Reg8::A, v);
+                2
+            }
+            (Arg8::Reg(Reg8::A), Arg8::Ind(nn)) => {
+                let v = memory.read_byte(nn);
+                self.write_reg8(Reg8::A, v);
+                4
+            }
+            (Arg8::IndReg(r), Arg8::Reg(Reg8::A)) if r == Reg16::BC || r == Reg16::DE => {
+                let v = self.read_reg8(Reg8::A);
+                let addr = self.read_reg16(r);
+                memory.write_byte(addr, v);
+                2
+            }
+            (Arg8::Ind(nn), Arg8::Reg(Reg8::A)) => {
+                let v = self.read_reg8(Reg8::A);
+                memory.write_byte(nn, v);
+                4
+            }
             _ => todo!(),
         };
         m
@@ -133,6 +155,52 @@ mod tests {
         let i = Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Immed(0x12));
         let m = reg.execute(i, &mut mem);
         assert_eq!(3, m);
+        assert_eq!(0x12, mem.read_byte(0x100));
+    }
+    #[test]
+    fn ld8_a_pbc() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(Reg16::BC, 0x100);
+        mem.write_byte(0x100, 0x12);
+        let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::BC));
+        let m = reg.execute(i, &mut mem);
+        assert_eq!(2, m);
+        assert_eq!(0x12, reg.read_reg8(Reg8::A));
+    }
+    #[test]
+    fn ld8_a_pnn() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        mem.write_byte(0x100, 0x12);
+        let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Ind(0x100));
+        let m = reg.execute(i, &mut mem);
+        assert_eq!(4, m);
+        assert_eq!(0x12, reg.read_reg8(Reg8::A));
+    }
+    #[test]
+    fn ld8_pbc_a() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg8(Reg8::A, 0x12);
+        reg.write_reg16(Reg16::DE, 0x100);
+        let i = Inst::Ld8(Arg8::IndReg(Reg16::DE), Arg8::Reg(Reg8::A));
+        let m = reg.execute(i, &mut mem);
+        assert_eq!(2, m);
+        assert_eq!(0x12, mem.read_byte(0x100));
+    }
+    #[test]
+    fn ld8_pnn_a() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg8(Reg8::A, 0x12);
+        let i = Inst::Ld8(Arg8::Ind(0x100), Arg8::Reg(Reg8::A));
+        let m = reg.execute(i, &mut mem);
+        assert_eq!(4, m);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
 }
