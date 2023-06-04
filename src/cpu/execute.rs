@@ -3,18 +3,18 @@ use super::{Registers, M};
 use crate::memory::MemoryIF;
 
 impl Registers {
-    pub fn execute(&mut self, inst: Inst, memory: &mut impl MemoryIF) -> M {
+    pub fn execute(&mut self, inst: Inst, memory: &mut impl MemoryIF) -> Result<M, String> {
         let m = match inst {
-            Inst::Ld8(dist, src) => self.ld8(dist, src, memory),
+            Inst::Ld8(dist, src) => self.ld8(dist, src, memory)?,
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
         };
-        m
+        Ok(m)
     }
 
-    fn ld8(&mut self, dist: Arg8, src: Arg8, memory: &mut impl MemoryIF) -> M {
-        let m = match (dist, src) {
+    fn ld8(&mut self, dest: Arg8, src: Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let m = match (dest, src) {
             (Arg8::Reg(rd), Arg8::Reg(rs)) => {
                 let v = self.read_reg8(rs);
                 self.write_reg8(rd, v);
@@ -113,9 +113,11 @@ impl Registers {
                 self.write_reg16(Reg16::HL, hl - 1);
                 2
             }
-            _ => todo!(),
+            (dest, src) => {
+                return Err(format!("ld8, Invalid instruction: {:#?}, {:#?}", dest, src))
+            }
         };
-        m
+        Ok(m)
     }
 }
 
@@ -160,7 +162,7 @@ mod tests {
 
         reg.write_reg8(Reg8::B, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(1, m);
         assert_eq!(0x12, reg.read_reg8(Reg8::A));
     }
@@ -170,7 +172,7 @@ mod tests {
         let mut mem = TestMemory::new();
 
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Immed(0x12));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x12, reg.read_reg8(Reg8::A));
     }
@@ -182,7 +184,7 @@ mod tests {
         reg.write_reg16(Reg16::HL, 0x100);
         mem.write_byte(0x100, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x12, reg.read_reg8(Reg8::A));
     }
@@ -194,7 +196,7 @@ mod tests {
         reg.write_reg16(Reg16::HL, 0x100);
         reg.write_reg8(Reg8::A, 0x12);
         let i = Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::A));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
@@ -205,7 +207,7 @@ mod tests {
 
         reg.write_reg16(Reg16::HL, 0x100);
         let i = Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Immed(0x12));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(3, m);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
@@ -217,7 +219,7 @@ mod tests {
         reg.write_reg16(Reg16::BC, 0x100);
         mem.write_byte(0x100, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::BC));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x12, reg.read_reg8(Reg8::A));
     }
@@ -228,7 +230,7 @@ mod tests {
 
         mem.write_byte(0x100, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Ind(0x100));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(4, m);
         assert_eq!(0x12, reg.read_reg8(Reg8::A));
     }
@@ -240,7 +242,7 @@ mod tests {
         reg.write_reg8(Reg8::A, 0x12);
         reg.write_reg16(Reg16::DE, 0x100);
         let i = Inst::Ld8(Arg8::IndReg(Reg16::DE), Arg8::Reg(Reg8::A));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
@@ -251,7 +253,7 @@ mod tests {
 
         reg.write_reg8(Reg8::A, 0x12);
         let i = Inst::Ld8(Arg8::Ind(0x100), Arg8::Reg(Reg8::A));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(4, m);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
@@ -262,7 +264,7 @@ mod tests {
 
         mem.write_byte(0xff12, 0x34);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIo(0x12));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(3, m);
         assert_eq!(0x34, reg.read_reg8(Reg8::A));
     }
@@ -273,7 +275,7 @@ mod tests {
 
         reg.write_reg8(Reg8::A, 0x34);
         let i = Inst::Ld8(Arg8::IndIo(0x12), Arg8::Reg(Reg8::A));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(3, m);
         assert_eq!(0x34, mem.read_byte(0xff12));
     }
@@ -285,7 +287,7 @@ mod tests {
         mem.write_byte(0xff12, 0x34);
         reg.write_reg8(Reg8::C, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIoC);
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x34, reg.read_reg8(Reg8::A));
     }
@@ -297,7 +299,7 @@ mod tests {
         reg.write_reg8(Reg8::A, 0x34);
         reg.write_reg8(Reg8::C, 0x12);
         let i = Inst::Ld8(Arg8::IndIoC, Arg8::Reg(Reg8::A));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x34, mem.read_byte(0xff12));
     }
@@ -309,7 +311,7 @@ mod tests {
         reg.write_reg8(Reg8::A, 0x12);
         reg.write_reg16(Reg16::HL, 0x100);
         let i = Inst::Ld8(Arg8::IndIncHL, Arg8::Reg(Reg8::A));
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x12, mem.read_byte(0x100));
         assert_eq!(0x101, reg.read_reg16(Reg16::HL));
@@ -322,7 +324,7 @@ mod tests {
         reg.write_reg16(Reg16::HL, 0x100);
         mem.write_byte(0x100, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndDecHL);
-        let m = reg.execute(i, &mut mem);
+        let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x12, reg.read_reg8(Reg8::A));
         assert_eq!(0xff, reg.read_reg16(Reg16::HL));

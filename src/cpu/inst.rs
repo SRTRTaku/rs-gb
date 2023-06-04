@@ -100,7 +100,7 @@ pub enum Reg16 {
     DE,
     HL,
     SP,
-    CP,
+    PC,
 }
 
 #[derive(Debug, PartialEq)]
