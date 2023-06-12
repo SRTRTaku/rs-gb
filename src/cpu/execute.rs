@@ -6,6 +6,7 @@ impl Registers {
     pub fn execute(&mut self, inst: Inst, memory: &mut impl MemoryIF) -> Result<M, String> {
         let m = match inst {
             Inst::Ld8(dist, src) => self.ld8(dist, src, memory)?,
+            Inst::Ld16(dist, src) => self.ld16(dist, src, memory)?,
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
@@ -113,9 +114,18 @@ impl Registers {
                 self.write_reg16(Reg16::HL, hl - 1);
                 2
             }
-            (dest, src) => {
-                return Err(format!("ld8, Invalid instruction: {:#?}, {:#?}", dest, src))
+            (dest, src) => return Err(format!("ld8, Invalid instruction: {:?}, {:?}", dest, src)),
+        };
+        Ok(m)
+    }
+
+    fn ld16(&mut self, dest: Arg16, src: Arg16, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let m = match (dest, src) {
+            (Arg16::Reg(rd), Arg16::Immed(nn)) => {
+                self.write_reg16(rd, nn);
+                3
             }
+            (dest, src) => return Err(format!("ld16, Invalid instruction: {:?}, {:?}", dest, src)),
         };
         Ok(m)
     }
@@ -155,6 +165,9 @@ mod tests {
         }
     }
 
+    //
+    // 8-bit load instructions
+    //
     #[test]
     fn ld8_r_r() {
         let mut reg = Registers::new();
@@ -328,5 +341,19 @@ mod tests {
         assert_eq!(2, m);
         assert_eq!(0x12, reg.read_reg8(Reg8::A));
         assert_eq!(0xff, reg.read_reg16(Reg16::HL));
+    }
+
+    //
+    // 16-bit load instructions
+    //
+    #[test]
+    fn ld16_rr_nn() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        let i = Inst::Ld16(Arg16::Reg(Reg16::BC), Arg16::Immed(0x1234));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(3, m);
+        assert_eq!(0x1234, reg.read_reg16(Reg16::BC));
     }
 }
