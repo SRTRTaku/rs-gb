@@ -125,6 +125,19 @@ impl Registers {
                 self.write_reg16(rd, nn);
                 3
             }
+            (Arg16::Ind(nn), Arg16::Reg(Reg16::SP)) => {
+                let sp = self.read_reg16(Reg16::SP);
+                let lower = (sp & 0x00ff) as u8;
+                let upper = ((sp >> 8) & 0x00ff) as u8;
+                memory.write_byte(nn, lower);
+                memory.write_byte(nn + 1, upper);
+                5
+            }
+            (Arg16::Reg(Reg16::SP), Arg16::Reg(Reg16::HL)) => {
+                let v = self.read_reg16(Reg16::HL);
+                self.write_reg16(Reg16::SP, v);
+                2
+            }
             (dest, src) => return Err(format!("ld16, Invalid instruction: {:?}, {:?}", dest, src)),
         };
         Ok(m)
@@ -355,5 +368,28 @@ mod tests {
         let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(3, m);
         assert_eq!(0x1234, reg.read_reg16(Reg16::BC));
+    }
+    #[test]
+    fn ld16_pnn_sp() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(Reg16::SP, 0x1234);
+        let i = Inst::Ld16(Arg16::Ind(0x100), Arg16::Reg(Reg16::SP));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(5, m);
+        assert_eq!(0x34, mem.read_byte(0x100));
+        assert_eq!(0x12, mem.read_byte(0x101));
+    }
+    #[test]
+    fn ld16_sp_hl() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(Reg16::HL, 0x1234);
+        let i = Inst::Ld16(Arg16::Reg(Reg16::SP), Arg16::Reg(Reg16::HL));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(2, m);
+        assert_eq!(0x1234, reg.read_reg16(Reg16::SP));
     }
 }
