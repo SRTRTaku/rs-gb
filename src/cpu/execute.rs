@@ -7,6 +7,8 @@ impl Registers {
         let m = match inst {
             Inst::Ld8(dist, src) => self.ld8(dist, src, memory)?,
             Inst::Ld16(dist, src) => self.ld16(dist, src, memory)?,
+            Inst::Push16(rr) => self.push(rr, memory),
+            Inst::Pop16(rr) => self.pop(rr, memory),
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
@@ -127,10 +129,7 @@ impl Registers {
             }
             (Arg16::Ind(nn), Arg16::Reg(Reg16::SP)) => {
                 let sp = self.read_reg16(Reg16::SP);
-                let lower = (sp & 0x00ff) as u8;
-                let upper = ((sp >> 8) & 0x00ff) as u8;
-                memory.write_byte(nn, lower);
-                memory.write_byte(nn + 1, upper);
+                memory.write_word(nn, sp);
                 5
             }
             (Arg16::Reg(Reg16::SP), Arg16::Reg(Reg16::HL)) => {
@@ -141,6 +140,23 @@ impl Registers {
             (dest, src) => return Err(format!("ld16, Invalid instruction: {:?}, {:?}", dest, src)),
         };
         Ok(m)
+    }
+
+    fn push(&mut self, rr: Reg16, memory: &mut impl MemoryIF) -> M {
+        let sp_org = self.read_reg16(Reg16::SP);
+        let sp = sp_org - 2;
+        self.write_reg16(Reg16::SP, sp);
+        let v = self.read_reg16(rr);
+        memory.write_word(sp, v);
+        4
+    }
+    fn pop(&mut self, rr: Reg16, memory: &mut impl MemoryIF) -> M {
+        let sp_org = self.read_reg16(Reg16::SP);
+        let v = memory.read_word(sp_org);
+        self.write_reg16(rr, v);
+        let sp = sp_org + 2;
+        self.write_reg16(Reg16::SP, sp);
+        3
     }
 }
 
@@ -163,8 +179,8 @@ mod tests {
             self.memory[addr as usize]
         }
         fn read_word(&self, addr: u16) -> u16 {
-            let h = self.memory[addr as usize] as u16;
-            let l = self.memory[addr as usize + 1] as u16;
+            let l = self.memory[addr as usize] as u16;
+            let h = self.memory[addr as usize + 1] as u16;
             (h << 8) | l
         }
         fn write_byte(&mut self, addr: u16, val: u8) {
@@ -173,8 +189,8 @@ mod tests {
         fn write_word(&mut self, addr: u16, val: u16) {
             let h = (val >> 8) as u8;
             let l = (val & 0x00ff) as u8;
-            self.memory[addr as usize] = h;
-            self.memory[addr as usize + 1] = l;
+            self.memory[addr as usize] = l;
+            self.memory[addr as usize + 1] = h;
         }
     }
 
@@ -378,8 +394,7 @@ mod tests {
         let i = Inst::Ld16(Arg16::Ind(0x100), Arg16::Reg(Reg16::SP));
         let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(5, m);
-        assert_eq!(0x34, mem.read_byte(0x100));
-        assert_eq!(0x12, mem.read_byte(0x101));
+        assert_eq!(0x1234, mem.read_word(0x100));
     }
     #[test]
     fn ld16_sp_hl() {
@@ -391,5 +406,31 @@ mod tests {
         let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0x1234, reg.read_reg16(Reg16::SP));
+    }
+    #[test]
+    fn push_rr() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(Reg16::SP, 0x100);
+        reg.write_reg16(Reg16::BC, 0x1234);
+        let i = Inst::Push16(Reg16::BC);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0x100 - 2, reg.read_reg16(Reg16::SP));
+        assert_eq!(0x1234, mem.read_word(0x100 - 2));
+    }
+    #[test]
+    fn pop_rr() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        mem.write_word(0x100, 0x1234);
+        reg.write_reg16(Reg16::SP, 0x100);
+        let i = Inst::Pop16(Reg16::DE);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(3, m);
+        assert_eq!(0x100 + 2, reg.read_reg16(Reg16::SP));
+        assert_eq!(0x1234, reg.read_reg16(Reg16::DE));
     }
 }
