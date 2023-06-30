@@ -113,8 +113,8 @@ pub enum JpFlag {
 
 #[derive(Debug, PartialEq)]
 pub enum FlagReg {
-    Zero,        // z
-    Subtraction, // n,
-    HalfCarry,   // h
-    Carry,       // c
+    Z, // Zero
+    N, // Subtraction
+    H, // HalfCarry
+    C, // Carry
 }

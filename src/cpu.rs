@@ -3,7 +3,7 @@ mod decode_prefix_cb;
 mod execute;
 mod inst;
 use crate::memory::MemoryIF;
-use inst::{Reg16, Reg8};
+use inst::{FlagReg, Reg16, Reg8};
 
 type M = usize;
 pub struct Cpu {
@@ -125,5 +125,26 @@ impl Registers {
             Reg16::SP => self.sp = v,
             _ => panic!(),
         }
+    }
+    fn test_f(&self, f: FlagReg) -> bool {
+        let mask = flag_mask(f);
+        (self.f & mask) == mask
+    }
+    fn clear_f(&mut self, f: FlagReg) {
+        let mask = flag_mask(f);
+        self.f &= !mask;
+    }
+    fn set_f(&mut self, f: FlagReg) {
+        let mask = flag_mask(f);
+        self.f |= mask;
+    }
+}
+
+fn flag_mask(f: FlagReg) -> u8 {
+    match f {
+        FlagReg::Z => 0x80,
+        FlagReg::N => 0x40,
+        FlagReg::H => 0x20,
+        FlagReg::C => 0x10,
     }
 }
