@@ -62,7 +62,7 @@ pub enum Inst {
     Rst(u8),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Arg8 {
     Reg(Reg8),
     Immed(u8),
@@ -74,7 +74,7 @@ pub enum Arg8 {
     IndIoC,    // FF00 + C
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Reg8 {
     A,
     // F, not specified
@@ -93,7 +93,7 @@ pub enum Arg16 {
     Ind(u16),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Reg16 {
     AF,
     BC,

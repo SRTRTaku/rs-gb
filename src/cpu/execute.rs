@@ -17,6 +17,8 @@ impl Registers {
             Inst::Xor(Arg8::Reg(Reg8::A), x) => self.xor_a(x, memory)?,
             Inst::Or(Arg8::Reg(Reg8::A), x) => self.or_a(x, memory)?,
             Inst::Cp(Arg8::Reg(Reg8::A), x) => self.cp(x, memory)?,
+            Inst::Inc(x) => self.inc(x, memory)?,
+            Inst::Dec(x) => self.dec(x, memory)?,
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
@@ -439,6 +441,80 @@ impl Registers {
         ////
         Ok(m)
     }
+    fn inc(&mut self, x: Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let (m, v) = match x.clone() {
+            Arg8::Reg(r) => (1, self.read_reg8(r)),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(Reg16::HL);
+                (3, memory.read_byte(hl))
+            }
+            _ => return Err(format!("inc, Invalid instruction: {:?}", x)),
+        };
+        let ans = v.wrapping_add(1);
+        //// set flags
+        // Z
+        if ans == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
+        // N
+        self.clear_f(FlagReg::N);
+        // H
+        let hv = 0x0f & v;
+        if hv + 1 > 0x0f {
+            self.set_f(FlagReg::H);
+        } else {
+            self.clear_f(FlagReg::H);
+        }
+        ////
+        match x {
+            Arg8::Reg(r) => self.write_reg8(r, ans),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(Reg16::HL);
+                memory.write_byte(hl, ans);
+            }
+            _ => return Err(format!("inc, Invalid instruction: {:?}", x)),
+        }
+        Ok(m)
+    }
+    fn dec(&mut self, x: Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let (m, v) = match x.clone() {
+            Arg8::Reg(r) => (1, self.read_reg8(r)),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(Reg16::HL);
+                (3, memory.read_byte(hl))
+            }
+            _ => return Err(format!("dec, Invalid instruction: {:?}", x)),
+        };
+        let ans = v.wrapping_sub(1);
+        //// set flags
+        // Z
+        if ans == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
+        // N
+        self.set_f(FlagReg::N);
+        // H
+        let hv = 0x0f & v;
+        if hv < 1 {
+            self.set_f(FlagReg::H);
+        } else {
+            self.clear_f(FlagReg::H);
+        }
+        ////
+        match x {
+            Arg8::Reg(r) => self.write_reg8(r, ans),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(Reg16::HL);
+                memory.write_byte(hl, ans);
+            }
+            _ => return Err(format!("dec, Invalid instruction: {:?}", x)),
+        }
+        Ok(m)
+    }
 }
 
 #[cfg(test)]
@@ -832,7 +908,7 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::C));
     }
     #[test]
-    fn cp_a_n() {
+    fn cp_n() {
         let mut reg = Registers::new();
         let mut mem = TestMemory::new();
 
@@ -845,5 +921,36 @@ mod tests {
         assert_eq!(true, reg.test_f(FlagReg::N));
         assert_eq!(true, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn inc_phl() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(Reg16::HL, 0x100);
+        mem.write_byte(0x100, 0x7f);
+        let i = Inst::Inc(Arg8::IndReg(Reg16::HL));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(3, m);
+        assert_eq!(0x80, mem.read_byte(0x100));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(true, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn dec_r() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg8(Reg8::E, 0x10);
+        let i = Inst::Dec(Arg8::Reg(Reg8::E));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(1, m);
+        assert_eq!(0x0f, reg.read_reg8(Reg8::E));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(true, reg.test_f(FlagReg::N));
+        assert_eq!(true, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
     }
 }
