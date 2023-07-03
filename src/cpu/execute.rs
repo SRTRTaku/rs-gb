@@ -19,6 +19,7 @@ impl Registers {
             Inst::Cp(Arg8::Reg(Reg8::A), x) => self.cp(x, memory)?,
             Inst::Inc(x) => self.inc(x, memory)?,
             Inst::Dec(x) => self.dec(x, memory)?,
+            Inst::Daa => self.daa(),
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
@@ -515,6 +516,36 @@ impl Registers {
         }
         Ok(m)
     }
+    fn daa(&mut self) -> M {
+        let a = self.read_reg8(Reg8::A);
+        let a1 = if a & 0x0f > 9 || self.test_f(FlagReg::H) {
+            if a as u16 + 6 > 0xff {
+                self.set_f(FlagReg::C);
+            }
+            a.wrapping_add(6)
+        } else {
+            a
+        };
+        let a2 = if a & 0xf0 > 0x90 || self.test_f(FlagReg::C) {
+            if a1 as u16 + 0x60 > 0xff {
+                self.set_f(FlagReg::C);
+            }
+            a1.wrapping_add(0x60)
+        } else {
+            a1
+        };
+        //// set flags
+        if a2 == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
+        self.clear_f(FlagReg::H);
+        ////
+        self.write_reg8(Reg8::A, a2);
+        let m = 1;
+        m
+    }
 }
 
 #[cfg(test)]
@@ -952,5 +983,34 @@ mod tests {
         assert_eq!(true, reg.test_f(FlagReg::N));
         assert_eq!(true, reg.test_f(FlagReg::H));
         assert_eq!(false, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn daa() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        // 12 + 34 = 46
+        reg.write_reg8(Reg8::A, 0x12);
+        let i = Inst::Add(Arg8::Reg(Reg8::A), Arg8::Immed(0x34));
+        let _m = reg.execute(i, &mut mem).unwrap();
+
+        let i = Inst::Daa;
+        let _m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(0x46, reg.read_reg8(Reg8::A));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
+
+        // 99 + 99 = 198
+        reg.write_reg8(Reg8::A, 0x99);
+        let i = Inst::Add(Arg8::Reg(Reg8::A), Arg8::Immed(0x99));
+        let _m = reg.execute(i, &mut mem).unwrap();
+
+        let i = Inst::Daa;
+        let _m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(0x98, reg.read_reg8(Reg8::A));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
     }
 }
