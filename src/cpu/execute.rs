@@ -21,6 +21,7 @@ impl Registers {
             Inst::Dec(x) => self.dec(x, memory)?,
             Inst::Daa => self.daa(),
             Inst::Cpl => self.cpl(),
+            Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(rr)) => self.add16_hl(rr),
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
@@ -558,6 +559,32 @@ impl Registers {
         let m = 1;
         m
     }
+    fn add16_hl(&mut self, rr: Reg16) -> M {
+        let hl = self.read_reg16(Reg16::HL);
+        let v = self.read_reg16(rr);
+        let ans = hl.wrapping_add(v);
+        //// set flags
+        // N
+        self.clear_f(FlagReg::N);
+        // H
+        let hhl = 0x0fff & hl;
+        let hv = 0x0fff & v;
+        if hhl + hv > 0x0fff {
+            self.set_f(FlagReg::H);
+        } else {
+            self.clear_f(FlagReg::H);
+        }
+        // C
+        if hl as u32 + v as u32 > 0xffff {
+            self.set_f(FlagReg::C);
+        } else {
+            self.clear_f(FlagReg::C);
+        }
+        ////
+        self.write_reg16(Reg16::HL, ans);
+        let m = 2;
+        m
+    }
 }
 
 #[cfg(test)]
@@ -1039,5 +1066,24 @@ mod tests {
         assert_eq!(true, reg.test_f(FlagReg::N));
         assert_eq!(true, reg.test_f(FlagReg::H));
         assert_eq!(false, reg.test_f(FlagReg::C));
+    }
+    //
+    // 16-bit arithmetic/logic instructions
+    //
+    #[test]
+    fn add_hl_rr() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(Reg16::HL, 0xffff);
+        reg.write_reg16(Reg16::BC, 0x0001);
+        let i = Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::BC));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(2, m);
+        assert_eq!(0x0000, reg.read_reg16(Reg16::HL));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(true, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
     }
 }
