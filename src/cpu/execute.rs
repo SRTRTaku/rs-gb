@@ -20,6 +20,7 @@ impl Registers {
             Inst::Inc(x) => self.inc(x, memory)?,
             Inst::Dec(x) => self.dec(x, memory)?,
             Inst::Daa => self.daa(),
+            Inst::Cpl => self.cpl(),
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
@@ -546,6 +547,17 @@ impl Registers {
         let m = 1;
         m
     }
+    fn cpl(&mut self) -> M {
+        let a = self.read_reg8(Reg8::A);
+        let ans = !a;
+        //// set flags
+        self.set_f(FlagReg::N);
+        self.set_f(FlagReg::H);
+        ////
+        self.write_reg8(Reg8::A, ans);
+        let m = 1;
+        m
+    }
 }
 
 #[cfg(test)]
@@ -1012,5 +1024,20 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn cpl() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg8(Reg8::A, 0xf0);
+        let i = Inst::Cpl;
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(1, m);
+        assert_eq!(0x0f, reg.read_reg8(Reg8::A));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(true, reg.test_f(FlagReg::N));
+        assert_eq!(true, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
     }
 }
