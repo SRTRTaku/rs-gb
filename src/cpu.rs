@@ -59,7 +59,7 @@ impl Registers {
             sp: 0,
         }
     }
-    fn read_reg8(&self, r: Reg8) -> u8 {
+    fn read_reg8(&self, r: &Reg8) -> u8 {
         match r {
             Reg8::A => self.a,
             Reg8::B => self.b,
@@ -70,7 +70,7 @@ impl Registers {
             Reg8::L => self.l,
         }
     }
-    fn write_reg8(&mut self, r: Reg8, v: u8) {
+    fn write_reg8(&mut self, r: &Reg8, v: u8) {
         match r {
             Reg8::A => self.a = v,
             Reg8::B => self.b = v,
@@ -81,7 +81,7 @@ impl Registers {
             Reg8::L => self.l = v,
         }
     }
-    fn read_reg16(&self, r: Reg16) -> u16 {
+    fn read_reg16(&self, r: &Reg16) -> u16 {
         match r {
             // Reg16::AF => xx,
             Reg16::BC => {
@@ -104,7 +104,7 @@ impl Registers {
             _ => panic!(),
         }
     }
-    fn write_reg16(&mut self, r: Reg16, v: u16) {
+    fn write_reg16(&mut self, r: &Reg16, v: u16) {
         let v0 = (v >> 8) as u8;
         let v1 = (v & 0x00ff) as u8;
         match r {
