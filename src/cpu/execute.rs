@@ -24,6 +24,8 @@ impl Registers {
             Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(rr)) => self.add16_hl(rr),
             Inst::Inc16(Arg16::Reg(rr)) => self.inc16_rr(rr),
             Inst::Dec16(Arg16::Reg(rr)) => self.dec16_rr(rr),
+            Inst::Add16SP(dd) => self.add16_sp_dd(dd),
+            Inst::Ld16HLSP(dd) => self.ld16_hl_sp_dd(dd),
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
@@ -601,6 +603,28 @@ impl Registers {
         let m = 2;
         m
     }
+    fn add16_sp_dd(&mut self, dd: i8) -> M {
+        let sp = self.read_reg16(&Reg16::SP);
+        let ans = if dd > 0 {
+            sp.wrapping_add(dd as u16)
+        } else {
+            sp.wrapping_sub((-dd) as u16)
+        };
+        self.write_reg16(&Reg16::SP, ans);
+        let m = 4;
+        m
+    }
+    fn ld16_hl_sp_dd(&mut self, dd: i8) -> M {
+        let sp = self.read_reg16(&Reg16::SP);
+        let ans = if dd > 0 {
+            sp.wrapping_add(dd as u16)
+        } else {
+            sp.wrapping_sub((-dd) as u16)
+        };
+        self.write_reg16(&Reg16::HL, ans);
+        let m = 3;
+        m
+    }
 }
 
 #[cfg(test)]
@@ -1114,14 +1138,26 @@ mod tests {
         assert_eq!(0x0010, reg.read_reg16(&Reg16::DE));
     }
     #[test]
-    fn dec_rr() {
+    fn add_sp_dd() {
         let mut reg = Registers::new();
         let mut mem = TestMemory::new();
 
-        reg.write_reg16(&Reg16::HL, 0x000f);
-        let i = Inst::Dec16(Arg16::Reg(Reg16::HL));
+        reg.write_reg16(&Reg16::SP, 0x0100);
+        let i = Inst::Add16SP(-1);
         let m = reg.execute(i, &mut mem).unwrap();
-        assert_eq!(2, m);
-        assert_eq!(0x000e, reg.read_reg16(&Reg16::HL));
+        assert_eq!(4, m);
+        assert_eq!(0x00ff, reg.read_reg16(&Reg16::SP));
+    }
+    #[test]
+    fn ld_hl_sp_dd() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::HL, 0x0000);
+        reg.write_reg16(&Reg16::SP, 0x0100);
+        let i = Inst::Ld16HLSP(-1);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(3, m);
+        assert_eq!(0x00ff, reg.read_reg16(&Reg16::HL));
     }
 }
