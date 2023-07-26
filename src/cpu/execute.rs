@@ -632,7 +632,11 @@ impl Registers {
     fn rlca(&mut self) -> M {
         let a = self.read_reg8(&Reg8::A);
         let (a1, c) = rot(a, Direction::Left);
-        self.clear_f(FlagReg::Z);
+        if a1 == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
         self.clear_f(FlagReg::N);
         self.clear_f(FlagReg::H);
         if c {
@@ -647,7 +651,11 @@ impl Registers {
         let a = self.read_reg8(&Reg8::A);
         let c = self.test_f(FlagReg::C);
         let (a1, c1) = rot_through_carry(a, c, Direction::Left);
-        self.clear_f(FlagReg::Z);
+        if a1 == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
         self.clear_f(FlagReg::N);
         self.clear_f(FlagReg::H);
         if c1 {
@@ -661,7 +669,11 @@ impl Registers {
     fn rrca(&mut self) -> M {
         let a = self.read_reg8(&Reg8::A);
         let (a1, c) = rot(a, Direction::Right);
-        self.clear_f(FlagReg::Z);
+        if a1 == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
         self.clear_f(FlagReg::N);
         self.clear_f(FlagReg::H);
         if c {
@@ -676,7 +688,11 @@ impl Registers {
         let a = self.read_reg8(&Reg8::A);
         let c = self.test_f(FlagReg::C);
         let (a1, c1) = rot_through_carry(a, c, Direction::Right);
-        self.clear_f(FlagReg::Z);
+        if a1 == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
         self.clear_f(FlagReg::N);
         self.clear_f(FlagReg::H);
         if c1 {
