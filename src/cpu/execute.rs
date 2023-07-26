@@ -30,6 +30,10 @@ impl Registers {
             Inst::Rla => self.rla(),
             Inst::Rrca => self.rrca(),
             Inst::Rra => self.rra(),
+            Inst::Rlc(x) => self.rlc(&x, memory)?,
+            Inst::Rl(x) => self.rl(&x, memory)?,
+            Inst::Rrc(x) => self.rrc(&x, memory)?,
+            Inst::Rr(x) => self.rr(&x, memory)?,
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
@@ -703,6 +707,152 @@ impl Registers {
         self.write_reg8(&Reg8::A, a1);
         1 // m
     }
+    fn rlc(&mut self, x: &Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let (m, v) = match x {
+            Arg8::Reg(r) => (2, self.read_reg8(&r)),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                (4, memory.read_byte(hl))
+            }
+            _ => return Err(format!("rlc, Invalid instruction: {:?}", x)),
+        };
+        let (v1, c) = rot(v, Direction::Left);
+        //
+        if v1 == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
+        self.clear_f(FlagReg::N);
+        self.clear_f(FlagReg::H);
+        if c {
+            self.set_f(FlagReg::C)
+        } else {
+            self.clear_f(FlagReg::C)
+        };
+        //
+        match x {
+            Arg8::Reg(r) => {
+                self.write_reg8(&r, v1);
+            }
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                memory.write_byte(hl, v1);
+            }
+            _ => return Err(format!("rlc, Invalid instruction: {:?}", x)),
+        }
+        Ok(m)
+    }
+    fn rl(&mut self, x: &Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let (m, v) = match x {
+            Arg8::Reg(r) => (2, self.read_reg8(&r)),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                (4, memory.read_byte(hl))
+            }
+            _ => return Err(format!("rl, Invalid instruction: {:?}", x)),
+        };
+        let c = self.test_f(FlagReg::Z);
+        let (v1, c1) = rot_through_carry(v, c, Direction::Left);
+        //
+        if v1 == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
+        self.clear_f(FlagReg::N);
+        self.clear_f(FlagReg::H);
+        if c1 {
+            self.set_f(FlagReg::C)
+        } else {
+            self.clear_f(FlagReg::C)
+        };
+        //
+        match x {
+            Arg8::Reg(r) => {
+                self.write_reg8(&r, v1);
+            }
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                memory.write_byte(hl, v1);
+            }
+            _ => return Err(format!("rl, Invalid instruction: {:?}", x)),
+        }
+        Ok(m)
+    }
+    fn rrc(&mut self, x: &Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let (m, v) = match x {
+            Arg8::Reg(r) => (2, self.read_reg8(&r)),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                (4, memory.read_byte(hl))
+            }
+            _ => return Err(format!("rlr, Invalid instruction: {:?}", x)),
+        };
+        let (v1, c) = rot(v, Direction::Right);
+        //
+        if v1 == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
+        self.clear_f(FlagReg::N);
+        self.clear_f(FlagReg::H);
+        if c {
+            self.set_f(FlagReg::C)
+        } else {
+            self.clear_f(FlagReg::C)
+        };
+        //
+        match x {
+            Arg8::Reg(r) => {
+                self.write_reg8(&r, v1);
+            }
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                memory.write_byte(hl, v1);
+            }
+            _ => return Err(format!("rrc, Invalid instruction: {:?}", x)),
+        }
+        Ok(m)
+    }
+    fn rr(&mut self, x: &Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let (m, v) = match x {
+            Arg8::Reg(r) => (2, self.read_reg8(&r)),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                (4, memory.read_byte(hl))
+            }
+            _ => return Err(format!("rr, Invalid instruction: {:?}", x)),
+        };
+        let c = self.test_f(FlagReg::Z);
+        let (v1, c1) = rot_through_carry(v, c, Direction::Right);
+        //
+        if v1 == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
+        self.clear_f(FlagReg::N);
+        self.clear_f(FlagReg::H);
+        if c1 {
+            self.set_f(FlagReg::C)
+        } else {
+            self.clear_f(FlagReg::C)
+        };
+        //
+        match x {
+            Arg8::Reg(r) => {
+                self.write_reg8(&r, v1);
+            }
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                memory.write_byte(hl, v1);
+            }
+            _ => return Err(format!("rr, Invalid instruction: {:?}", x)),
+        }
+        Ok(m)
+    }
 }
 
 // utils
@@ -1343,5 +1493,67 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(false, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn rlc_r() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg8(&Reg8::A, 0b10000000);
+        let i = Inst::Rlc(Arg8::Reg(Reg8::A));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(2, m);
+        assert_eq!(0b00000001, reg.read_reg8(&Reg8::A));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn rl_r() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::HL, 0x100);
+        mem.write_byte(0x100, 0b10000000);
+        let i = Inst::Rl(Arg8::IndReg(Reg16::HL));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0b00000000, mem.read_byte(0x100));
+        assert_eq!(true, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn rrc_r() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg8(&Reg8::B, 0b00000001);
+        let i = Inst::Rrc(Arg8::Reg(Reg8::B));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(2, m);
+        assert_eq!(0b10000000, reg.read_reg8(&Reg8::B));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn rr_r() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::HL, 0x100);
+        mem.write_byte(0x100, 0b00000001);
+        let i = Inst::Rr(Arg8::IndReg(Reg16::HL));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0b00000000, mem.read_byte(0x100));
+        assert_eq!(true, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
     }
 }
