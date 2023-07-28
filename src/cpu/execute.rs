@@ -38,6 +38,9 @@ impl Registers {
             Inst::Swap(x) => self.swap(&x, memory)?,
             Inst::Sra(x) => self.sra(&x, memory)?,
             Inst::Srl(x) => self.srl(&x, memory)?,
+            Inst::Bit(n, x) => self.bit(n, &x, memory)?,
+            Inst::Set(n, x) => self.set(n, &x, memory)?,
+            Inst::Res(n, x) => self.res(n, &x, memory)?,
             Inst::Nop => 1,
             Inst::Stop => todo!(),
             _ => todo!(),
@@ -1000,6 +1003,68 @@ impl Registers {
         }
         Ok(m)
     }
+    fn bit(&mut self, n: u8, x: &Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let (m, v) = match x {
+            Arg8::Reg(r) => (2, self.read_reg8(&r)),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                (3, memory.read_byte(hl))
+            }
+            _ => return Err(format!("bit, Invalid instruction: {:?}", x)),
+        };
+        if v & (1 << n) == 0 {
+            self.set_f(FlagReg::Z);
+        } else {
+            self.clear_f(FlagReg::Z);
+        }
+        self.clear_f(FlagReg::N);
+        self.set_f(FlagReg::H);
+        Ok(m)
+    }
+    fn set(&mut self, n: u8, x: &Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let (m, v) = match x {
+            Arg8::Reg(r) => (2, self.read_reg8(&r)),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                (4, memory.read_byte(hl))
+            }
+            _ => return Err(format!("set, Invalid instruction: {:?}", x)),
+        };
+        let v1 = v | (1 << n);
+        match x {
+            Arg8::Reg(r) => {
+                self.write_reg8(&r, v1);
+            }
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                memory.write_byte(hl, v1);
+            }
+            _ => return Err(format!("set, Invalid instruction: {:?}", x)),
+        }
+        Ok(m)
+    }
+    fn res(&mut self, n: u8, x: &Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
+        let (m, v) = match x {
+            Arg8::Reg(r) => (2, self.read_reg8(&r)),
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                (4, memory.read_byte(hl))
+            }
+            _ => return Err(format!("res, Invalid instruction: {:?}", x)),
+        };
+        let v1 = v & !(1 << n);
+        match x {
+            Arg8::Reg(r) => {
+                self.write_reg8(&r, v1);
+            }
+            Arg8::IndReg(Reg16::HL) => {
+                let hl = self.read_reg16(&Reg16::HL);
+                memory.write_byte(hl, v1);
+            }
+            _ => return Err(format!("res, Invalid instruction: {:?}", x)),
+        }
+        Ok(m)
+    }
 }
 
 // utils
@@ -1764,5 +1829,51 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
+    }
+    //
+    // single-bit operation instructions
+    //
+    #[test]
+    fn bit() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg8(&Reg8::A, 0b00100000);
+        let i = Inst::Bit(5, Arg8::Reg(Reg8::A));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(2, m);
+        assert_eq!(0b00100000, reg.read_reg8(&Reg8::A));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(true, reg.test_f(FlagReg::H));
+
+        let i = Inst::Bit(4, Arg8::Reg(Reg8::A));
+        reg.execute(i, &mut mem).unwrap();
+        assert_eq!(true, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(true, reg.test_f(FlagReg::H));
+    }
+    #[test]
+    fn set() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::HL, 0x100);
+        mem.write_byte(0x100, 0x00);
+        let i = Inst::Set(3, Arg8::IndReg(Reg16::HL));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0b00001000, mem.read_byte(0x100));
+    }
+    #[test]
+    fn res() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg8(&Reg8::B, 0xff);
+        let i = Inst::Res(2, Arg8::Reg(Reg8::B));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(2, m);
+        assert_eq!(0b11111011, reg.read_reg8(&Reg8::B));
     }
 }
