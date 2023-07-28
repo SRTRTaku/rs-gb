@@ -41,8 +41,13 @@ impl Registers {
             Inst::Bit(n, x) => self.bit(n, &x, memory)?,
             Inst::Set(n, x) => self.set(n, &x, memory)?,
             Inst::Res(n, x) => self.res(n, &x, memory)?,
+            Inst::Ccf => self.ccf(),
+            Inst::Scf => self.scf(),
             Inst::Nop => 1,
+            Inst::Halt => todo!(),
             Inst::Stop => todo!(),
+            Inst::Di => todo!(),
+            Inst::Ei => todo!(),
             _ => todo!(),
         };
         Ok(m)
@@ -1065,6 +1070,22 @@ impl Registers {
         }
         Ok(m)
     }
+    fn ccf(&mut self) -> M {
+        self.clear_f(FlagReg::N);
+        self.clear_f(FlagReg::H);
+        if self.test_f(FlagReg::C) {
+            self.clear_f(FlagReg::C);
+        } else {
+            self.set_f(FlagReg::C);
+        };
+        1
+    }
+    fn scf(&mut self) -> M {
+        self.clear_f(FlagReg::N);
+        self.clear_f(FlagReg::H);
+        self.set_f(FlagReg::C);
+        1
+    }
 }
 
 // utils
@@ -1875,5 +1896,36 @@ mod tests {
         let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(2, m);
         assert_eq!(0b11111011, reg.read_reg8(&Reg8::B));
+    }
+    //
+    // cpu control instructions
+    //
+    #[test]
+    fn ccf() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.set_f(FlagReg::C);
+        let i = Inst::Ccf;
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(1, m);
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
+        let i = Inst::Ccf;
+        let _ = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(true, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn scf() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        let i = Inst::Scf;
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(1, m);
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
     }
 }
