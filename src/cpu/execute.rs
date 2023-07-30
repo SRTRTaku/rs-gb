@@ -1,4 +1,4 @@
-use super::inst::{Arg16, Arg8, FlagReg, Inst, Reg16, Reg8};
+use super::inst::{Arg16, Arg8, FlagReg, Inst, JpFlag, Reg16, Reg8};
 use super::{Registers, M};
 use crate::memory::MemoryIF;
 
@@ -48,6 +48,9 @@ impl Registers {
             Inst::Stop => todo!(),
             Inst::Di => todo!(),
             Inst::Ei => todo!(),
+            Inst::Jp(nn) => self.jp_nn(nn),
+            Inst::JpHL => self.jp_hl(),
+            Inst::Jpf(f, nn) => self.jp_f_nn(f, nn),
             _ => todo!(),
         };
         Ok(m)
@@ -1086,6 +1089,31 @@ impl Registers {
         self.set_f(FlagReg::C);
         1
     }
+    fn jp_nn(&mut self, nn: u16) -> M {
+        self.write_reg16(&Reg16::SP, nn);
+        4
+    }
+    fn jp_hl(&mut self) -> M {
+        let hl = self.read_reg16(&Reg16::HL);
+        self.write_reg16(&Reg16::SP, hl);
+        1
+    }
+    fn jp_f_nn(&mut self, f: JpFlag, nn: u16) -> M {
+        let z = self.test_f(FlagReg::Z);
+        let c = self.test_f(FlagReg::C);
+        let branch = match f {
+            JpFlag::Nz => !z,
+            JpFlag::Z => z,
+            JpFlag::Nc => !c,
+            JpFlag::C => c,
+        };
+        if branch {
+            self.write_reg16(&Reg16::SP, nn);
+            4
+        } else {
+            3
+        }
+    }
 }
 
 // utils
@@ -1927,5 +1955,45 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
+    }
+    //
+    // jump instructions
+    //
+    #[test]
+    fn jp_nn() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        let i = Inst::Jp(0x200);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0x200, reg.read_reg16(&Reg16::SP));
+    }
+    #[test]
+    fn jp_hl() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::HL, 0x200);
+        let i = Inst::JpHL;
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(1, m);
+        assert_eq!(0x200, reg.read_reg16(&Reg16::SP));
+    }
+    #[test]
+    fn jp_f_nn() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        let i = Inst::Jpf(JpFlag::Z, 0x200);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(3, m);
+        assert_eq!(0x0, reg.read_reg16(&Reg16::SP));
+
+        reg.set_f(FlagReg::Z);
+        let i = Inst::Jpf(JpFlag::Z, 0x200);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0x200, reg.read_reg16(&Reg16::SP));
     }
 }
