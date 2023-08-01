@@ -51,6 +51,8 @@ impl Registers {
             Inst::Jp(nn) => self.jp_nn(nn),
             Inst::JpHL => self.jp_hl(),
             Inst::Jpf(f, nn) => self.jp_f_nn(f, nn),
+            Inst::Jr(dd) => self.jr_dd(dd),
+            Inst::Jrf(f, dd) => self.jr_f_dd(f, dd),
             _ => todo!(),
         };
         Ok(m)
@@ -1114,6 +1116,38 @@ impl Registers {
             3
         }
     }
+    fn jr_dd(&mut self, dd: i8) -> M {
+        let sp = self.read_reg16(&Reg16::SP);
+        let sp1 = if dd >= 0 {
+            sp.wrapping_add(dd as u16)
+        } else {
+            sp.wrapping_sub((-dd) as u16)
+        };
+        self.write_reg16(&Reg16::SP, sp1);
+        3
+    }
+    fn jr_f_dd(&mut self, f: JpFlag, dd: i8) -> M {
+        let z = self.test_f(FlagReg::Z);
+        let c = self.test_f(FlagReg::C);
+        let branch = match f {
+            JpFlag::Nz => !z,
+            JpFlag::Z => z,
+            JpFlag::Nc => !c,
+            JpFlag::C => c,
+        };
+        if branch {
+            let sp = self.read_reg16(&Reg16::SP);
+            let sp1 = if dd >= 0 {
+                sp.wrapping_add(dd as u16)
+            } else {
+                sp.wrapping_sub((-dd) as u16)
+            };
+            self.write_reg16(&Reg16::SP, sp1);
+            3
+        } else {
+            2
+        }
+    }
 }
 
 // utils
@@ -1995,5 +2029,34 @@ mod tests {
         let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(4, m);
         assert_eq!(0x200, reg.read_reg16(&Reg16::SP));
+    }
+    #[test]
+    fn jr_dd() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::SP, 0x200);
+        let i = Inst::Jr(-1);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(3, m);
+        assert_eq!(0x1ff, reg.read_reg16(&Reg16::SP));
+    }
+    #[test]
+    fn jr_f_dd() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::SP, 0x200);
+        reg.set_f(FlagReg::C);
+        let i = Inst::Jrf(JpFlag::Nc, -1);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(2, m);
+        assert_eq!(0x200, reg.read_reg16(&Reg16::SP));
+
+        reg.clear_f(FlagReg::C);
+        let i = Inst::Jrf(JpFlag::Nc, -1);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(3, m);
+        assert_eq!(0x1ff, reg.read_reg16(&Reg16::SP));
     }
 }
