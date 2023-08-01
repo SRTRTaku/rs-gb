@@ -99,7 +99,7 @@ impl Registers {
                 let l = self.l as u16;
                 (h << 8) | l
             }
-            // Reg16::PC => xx,
+            Reg16::PC => self.pc,
             Reg16::SP => self.sp,
             _ => panic!(),
         }
@@ -121,7 +121,7 @@ impl Registers {
                 self.h = v0;
                 self.l = v1;
             }
-            // Reg16::CP
+            Reg16::PC => self.pc = v,
             Reg16::SP => self.sp = v,
             _ => panic!(),
         }
