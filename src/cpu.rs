@@ -42,6 +42,7 @@ pub struct Registers {
     f: u8,
     pc: u16,
     sp: u16,
+    ime: bool,
 }
 
 impl Registers {
@@ -57,6 +58,7 @@ impl Registers {
             f: 0,
             pc: 0,
             sp: 0,
+            ime: false,
         }
     }
     fn read_reg8(&self, r: &Reg8) -> u8 {

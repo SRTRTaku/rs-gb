@@ -55,6 +55,9 @@ impl Registers {
             Inst::Jrf(f, dd) => self.jr_f_dd(f, dd),
             Inst::Call(nn) => self.call_nn(nn, memory),
             Inst::Callf(f, nn) => self.call_f_nn(f, nn, memory),
+            Inst::Ret => self.ret(memory),
+            Inst::Retf(f) => self.ret_f(f, memory),
+            Inst::Reti => self.reti(memory),
             _ => todo!(),
         };
         Ok(m)
@@ -1178,6 +1181,40 @@ impl Registers {
             3
         }
     }
+    fn ret(&mut self, memory: &mut impl MemoryIF) -> M {
+        let sp = self.read_reg16(&Reg16::SP);
+        let pc = memory.read_word(sp);
+        self.write_reg16(&Reg16::SP, sp + 2);
+        self.write_reg16(&Reg16::PC, pc);
+        4
+    }
+    fn ret_f(&mut self, f: JpFlag, memory: &mut impl MemoryIF) -> M {
+        let z = self.test_f(FlagReg::Z);
+        let c = self.test_f(FlagReg::C);
+        let branch = match f {
+            JpFlag::Nz => !z,
+            JpFlag::Z => z,
+            JpFlag::Nc => !c,
+            JpFlag::C => c,
+        };
+        if branch {
+            let sp = self.read_reg16(&Reg16::SP);
+            let pc = memory.read_word(sp);
+            self.write_reg16(&Reg16::SP, sp + 2);
+            self.write_reg16(&Reg16::PC, pc);
+            5
+        } else {
+            2
+        }
+    }
+    fn reti(&mut self, memory: &mut impl MemoryIF) -> M {
+        let sp = self.read_reg16(&Reg16::SP);
+        let pc = memory.read_word(sp);
+        self.write_reg16(&Reg16::SP, sp + 2);
+        self.write_reg16(&Reg16::PC, pc);
+        self.ime = true;
+        4
+    }
 }
 
 // utils
@@ -2123,5 +2160,54 @@ mod tests {
         assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
         assert_eq!(0xffe, reg.read_reg16(&Reg16::SP));
         assert_eq!(0x200, mem.read_word(0xffe));
+    }
+    #[test]
+    fn ret() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::SP, 0x1000);
+        mem.write_word(0x1000, 0x100);
+        let i = Inst::Ret;
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
+        assert_eq!(0x1002, reg.read_reg16(&Reg16::SP));
+    }
+    #[test]
+    fn ret_f() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::PC, 0x200);
+        reg.write_reg16(&Reg16::SP, 0x1000);
+        mem.write_word(0x1000, 0x100);
+        reg.set_f(FlagReg::C);
+        let i = Inst::Retf(JpFlag::Nc);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(2, m);
+        assert_eq!(0x200, reg.read_reg16(&Reg16::PC));
+        assert_eq!(0x1000, reg.read_reg16(&Reg16::SP));
+
+        reg.clear_f(FlagReg::C);
+        let i = Inst::Retf(JpFlag::Nc);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(5, m);
+        assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
+        assert_eq!(0x1002, reg.read_reg16(&Reg16::SP));
+    }
+    #[test]
+    fn reti() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::SP, 0x1000);
+        mem.write_word(0x1000, 0x100);
+        let i = Inst::Reti;
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
+        assert_eq!(0x1002, reg.read_reg16(&Reg16::SP));
+        assert_eq!(true, reg.ime);
     }
 }
