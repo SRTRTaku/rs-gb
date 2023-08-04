@@ -58,7 +58,8 @@ impl Registers {
             Inst::Ret => self.ret(memory),
             Inst::Retf(f) => self.ret_f(f, memory),
             Inst::Reti => self.reti(memory),
-            _ => todo!(),
+            Inst::Rst(n) => self.rst_n(n, memory),
+            i => return Err(format!("execute, Invalid instruction: {:?}", i)),
         };
         Ok(m)
     }
@@ -1223,6 +1224,14 @@ impl Registers {
         self.ime = true;
         4
     }
+    fn rst_n(&mut self, n: u8, memory: &mut impl MemoryIF) -> M {
+        let pc = self.read_reg16(&Reg16::PC);
+        let sp = self.read_reg16(&Reg16::SP);
+        self.write_reg16(&Reg16::SP, sp - 2);
+        memory.write_word(sp - 2, pc);
+        self.write_reg16(&Reg16::PC, n as u16);
+        4
+    }
 }
 
 // utils
@@ -2241,5 +2250,19 @@ mod tests {
         assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
         assert_eq!(0x1002, reg.read_reg16(&Reg16::SP));
         assert_eq!(true, reg.ime);
+    }
+    #[test]
+    fn rst_n() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.write_reg16(&Reg16::PC, 0x200);
+        reg.write_reg16(&Reg16::SP, 0x1000);
+        let i = Inst::Rst(0x38);
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0x38, reg.read_reg16(&Reg16::PC));
+        assert_eq!(0xffe, reg.read_reg16(&Reg16::SP));
+        assert_eq!(0x200, mem.read_word(0xffe));
     }
 }
