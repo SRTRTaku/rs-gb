@@ -46,8 +46,8 @@ impl Registers {
             Inst::Nop => 1,
             Inst::Halt => todo!(),
             Inst::Stop => todo!(),
-            Inst::Di => todo!(),
-            Inst::Ei => todo!(),
+            Inst::Di => self.di(),
+            Inst::Ei => self.ei(),
             Inst::Jp(nn) => self.jp_nn(nn),
             Inst::JpHL => self.jp_hl(),
             Inst::Jpf(f, nn) => self.jp_f_nn(f, nn),
@@ -1096,6 +1096,14 @@ impl Registers {
         self.set_f(FlagReg::C);
         1
     }
+    fn di(&mut self) -> M {
+        self.ime = false;
+        1
+    }
+    fn ei(&mut self) -> M {
+        self.ime = true;
+        1
+    }
     fn jp_nn(&mut self, nn: u16) -> M {
         self.write_reg16(&Reg16::PC, nn);
         4
@@ -2056,6 +2064,30 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
+    }
+    #[test]
+    fn di() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.ime = true;
+
+        let i = Inst::Di;
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(1, m);
+        assert_eq!(false, reg.ime);
+    }
+    #[test]
+    fn ei() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+
+        reg.ime = false;
+
+        let i = Inst::Ei;
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(1, m);
+        assert_eq!(true, reg.ime);
     }
     //
     // jump instructions
