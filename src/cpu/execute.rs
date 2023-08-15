@@ -1293,19 +1293,8 @@ mod tests {
         fn read_byte(&self, addr: u16) -> u8 {
             self.memory[addr as usize]
         }
-        fn read_word(&self, addr: u16) -> u16 {
-            let l = self.memory[addr as usize] as u16;
-            let h = self.memory[addr as usize + 1] as u16;
-            (h << 8) | l
-        }
         fn write_byte(&mut self, addr: u16, val: u8) {
             self.memory[addr as usize] = val;
-        }
-        fn write_word(&mut self, addr: u16, val: u16) {
-            let h = (val >> 8) as u8;
-            let l = (val & 0x00ff) as u8;
-            self.memory[addr as usize] = l;
-            self.memory[addr as usize + 1] = h;
         }
     }
 
