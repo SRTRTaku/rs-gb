@@ -2116,6 +2116,8 @@ mod tests {
         let mut reg = Registers::new();
         let mut mem = TestMemory::new();
 
+        reg.write_reg16(&Reg16::PC, 0x0);
+
         let i = Inst::Jpf(JpFlag::Z, 0x200);
         let m = reg.execute(i, &mut mem).unwrap();
         assert_eq!(3, m);
