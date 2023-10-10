@@ -6,6 +6,7 @@ use crate::memory::MemoryIF;
 use inst::{FlagReg, Reg16, Reg8};
 
 type M = usize;
+#[derive(Debug)]
 pub struct Cpu {
     clock_m: M,
     // t = 4m
@@ -31,6 +32,7 @@ impl Cpu {
     }
 }
 
+#[derive(Debug)]
 pub struct Registers {
     a: u8,
     b: u8,
@@ -56,7 +58,7 @@ impl Registers {
             h: 0,
             l: 0,
             f: 0,
-            pc: 0,
+            pc: 0x100,
             sp: 0,
             ime: false,
         }

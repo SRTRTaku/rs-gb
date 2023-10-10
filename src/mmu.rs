@@ -6,12 +6,13 @@ use std::io::Read;
 
 pub struct MMU {
     inbios: bool,
-    bios: [u8; 0x0100], // GameBoy BIOS code 256 byte
-    rom: [u8; 0x8000],  // Cartridge ROM 32k byte
-    vram: [u8; 0x2000], // Graphics RAM 8k byte
-    eram: [u8; 0x2000], // Cargridge (External) RAM 8k byte
-    wram: [u8; 0x2000], // Working RAM 8k byte
-    zram: [u8; 0x0080], // Zero-page Ram 128 byte
+    bios: [u8; 0x0100],  // GameBoy BIOS code 256 byte
+    rom: [u8; 0x8000],   // Cartridge ROM 32k byte
+    vram: [u8; 0x2000],  // Graphics RAM 8k byte
+    eram: [u8; 0x2000],  // Cargridge (External) RAM 8k byte
+    wram: [u8; 0x2000],  // Working RAM 8k byte
+    ioreg: [u8; 0x0080], // I/O Registers
+    zram: [u8; 0x0080],  // Zero-page Ram 128 byte
 }
 
 impl MMU {
@@ -23,6 +24,7 @@ impl MMU {
             vram: [0; 0x2000],
             eram: [0; 0x2000],
             wram: [0; 0x2000],
+            ioreg: [0; 0x0080],
             zram: [0; 0x0080],
         }
     }
@@ -46,7 +48,7 @@ impl MMU {
     pub fn dump(&self) {
         println!("rom");
         let begin = 0x0000;
-        let end = 0x1000;
+        let end = 0x0150;
         // print header
         print!("     |");
         for i in 0..16 {
@@ -74,16 +76,16 @@ impl MemoryIF for MMU {
     fn read_byte(&self, addr: u16) -> u8 {
         match addr {
             // BIOS / ROM0
-            0x0000..=0x3fff => {
-                let index = addr as usize;
-                if self.inbios && addr < 0x0100 {
-                    self.bios[index]
-                } else {
-                    self.rom[index]
-                }
-            }
+            //0x0000..=0x3fff => {
+            //let index = addr as usize;
+            //if self.inbios && addr < 0x0100 {
+            //self.bios[index]
+            //} else {
+            //self.rom[index]
+            //}
+            //}
             // ROM1 (unbanked) 16k
-            0x4000..=0x7fff => {
+            0x0000..=0x7fff => {
                 let index = addr as usize;
                 self.rom[index]
             }
@@ -112,7 +114,10 @@ impl MemoryIF for MMU {
             // not usable
             0xfea0..=0xfeff => panic!("not usable"),
             // I/O Register
-            0xff00..=0xff7f => todo!(),
+            0xff00..=0xff7f => {
+                let index = (addr - 0xff00) as usize;
+                self.ioreg[index]
+            }
             // Zero-page
             0xff80..=0xffff => {
                 let index = (addr - 0xff80) as usize;
@@ -152,7 +157,10 @@ impl MemoryIF for MMU {
             // not usable
             0xfea0..=0xfeff => panic!("not usable"),
             // I/O Register
-            0xff00..=0xff7f => todo!(),
+            0xff00..=0xff7f => {
+                let index = (addr - 0xff00) as usize;
+                self.ioreg[index] = val;
+            }
             // Zero-page
             0xff80..=0xffff => {
                 let index = (addr - 0xff80) as usize;
