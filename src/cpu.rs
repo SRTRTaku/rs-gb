@@ -25,9 +25,14 @@ impl Cpu {
         }
     }
     pub fn run(&mut self, memory: &mut impl MemoryIF) -> Result<(), String> {
-        let (inst, addvance) = decode::decode(self.reg.pc, memory)?;
-        self.reg.pc += addvance;
-        let m = self.reg.execute(inst, memory)?;
+        self.clock_m += 1;
+
+        if self.clock_m >= self.m {
+            let (inst, addvance) = decode::decode(self.reg.pc, memory)?;
+            self.reg.pc += addvance;
+            self.m = self.reg.execute(inst, memory)?;
+            self.clock_m = 0;
+        }
         Ok(())
     }
 }
