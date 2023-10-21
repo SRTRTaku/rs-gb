@@ -1,3 +1,4 @@
+use crate::io::Io;
 use crate::memory::MemoryIF;
 
 pub struct Ppu {
@@ -21,7 +22,7 @@ impl Ppu {
             line: 0,
         }
     }
-    pub fn run(&mut self, memory: &mut impl MemoryIF) -> Result<(), String> {
+    pub fn run(&mut self, memory: &mut impl MemoryIF, io: &mut Io) -> Result<(), String> {
         self.clock_m += 1;
         match self.mode {
             // OAM scan
