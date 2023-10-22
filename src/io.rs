@@ -45,7 +45,7 @@ impl Io {
         let mut _canvas = window.into_canvas().build().unwrap();
         let mut _event_pump = sdl_context.event_pump().unwrap();
 
-        _canvas.set_draw_color(BLACK);
+        _canvas.set_draw_color(WHITE);
         _canvas.clear();
         _canvas.present();
 
@@ -54,6 +54,22 @@ impl Io {
             event_pump: _event_pump,
             gfx: [GfxColor::W; GFX_SIZE_X * GFX_SIZE_Y],
         }
+    }
+    pub fn draw_a_line(&mut self, y: usize) {
+        for x in 0..GFX_SIZE_X {
+            let _x = (x * PIXEL_SIZE as usize) as i32;
+            let _y = (y * PIXEL_SIZE as usize) as i32;
+            match self.gfx[y * GFX_SIZE_X + x] {
+                GfxColor::W => self.canvas.set_draw_color(WHITE),
+                GfxColor::LG => self.canvas.set_draw_color(LIGHT_GRAY),
+                GfxColor::DG => self.canvas.set_draw_color(DARK_GRAY),
+                GfxColor::B => self.canvas.set_draw_color(BLACK),
+            }
+            self.canvas
+                .fill_rect(Rect::new(_x, _y, PIXEL_SIZE, PIXEL_SIZE))
+                .unwrap();
+        }
+        self.canvas.present();
     }
     pub fn draw_graphics(&mut self) {
         for y in 0..GFX_SIZE_Y {

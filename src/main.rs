@@ -34,32 +34,32 @@ fn main() {
     loop {
         //let mut s = String::new();
         //io::stdin().read_line(&mut s).unwrap();
-        loop {
-            match io.get_key() {
-                Some(-1) => return,
-                Some(_) => break,
-                _ => (),
-            }
+        //loop {
+        match io.get_key() {
+            Some(-1) => return,
+            //Some(_) => break,
+            _ => (),
         }
+        //}
 
         cpu.run(&mut mmu).unwrap();
         ppu.run(&mut mmu, &mut io).unwrap();
 
-        println!("{:#?}", cpu);
-        mmu.dump();
+        //println!("{:#?}", cpu);
+        //mmu.dump();
 
-        for y in 0..GFX_SIZE_Y {
-            let c = match (y / 16) % 4 {
-                0 => GfxColor::W,
-                1 => GfxColor::LG,
-                2 => GfxColor::DG,
-                3 => GfxColor::B,
-                _ => todo!(),
-            };
-            for x in 0..GFX_SIZE_X {
-                io.gfx[y * GFX_SIZE_X + x] = c;
-            }
-        }
-        io.draw_graphics();
+        //for y in 0..GFX_SIZE_Y {
+        //let c = match (y / 16) % 4 {
+        //0 => GfxColor::W,
+        //1 => GfxColor::LG,
+        //2 => GfxColor::DG,
+        //3 => GfxColor::B,
+        //_ => todo!(),
+        //};
+        //for x in 0..GFX_SIZE_X {
+        //io.gfx[y * GFX_SIZE_X + x] = c;
+        //}
+        //}
+        //io.draw_graphics();
     }
 }
