@@ -69,6 +69,8 @@ impl Io {
                 .fill_rect(Rect::new(_x, _y, PIXEL_SIZE, PIXEL_SIZE))
                 .unwrap();
         }
+    }
+    pub fn present(&mut self) {
         self.canvas.present();
     }
     pub fn draw_graphics(&mut self) {

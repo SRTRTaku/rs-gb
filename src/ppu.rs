@@ -45,23 +45,22 @@ impl Ppu {
 
                     // write a scanline to the framebuffer
                     write_a_scanline(self.line, memory, io);
+                    io.draw_a_line(self.line);
                 }
             }
             // Horizontal blank
             Mode::Mode0 => {
                 if self.clock_m >= 51 {
-                    io.draw_a_line(self.line);
                     self.clock_m = 0;
                     self.line += 1;
 
                     if self.line >= 144 {
+                        io.present();
                         self.mode = Mode::Mode1;
                     } else {
                         self.mode = Mode::Mode2;
                     }
-                    //io.draw_graphics();
                     memory.write_byte(0xff44, self.line as u8);
-                    println!("{}", self.line);
                 }
             }
             // Vertical blank
@@ -74,7 +73,6 @@ impl Ppu {
                         self.line = 0;
                     }
                     memory.write_byte(0xff44, self.line as u8);
-                    println!("{}", self.line);
                 }
             }
         }

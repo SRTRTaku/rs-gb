@@ -1,9 +1,8 @@
 use cpu::Cpu;
+use io::{GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
 use mmu::MMU;
 use ppu::Ppu;
 use std::env;
-//use std::io
-use io::{GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
 
 mod cpu;
 mod io;
@@ -32,8 +31,6 @@ fn main() {
     mmu.dump();
 
     loop {
-        //let mut s = String::new();
-        //io::stdin().read_line(&mut s).unwrap();
         //loop {
         match io.get_key() {
             Some(-1) => return,
@@ -47,19 +44,5 @@ fn main() {
 
         //println!("{:#?}", cpu);
         //mmu.dump();
-
-        //for y in 0..GFX_SIZE_Y {
-        //let c = match (y / 16) % 4 {
-        //0 => GfxColor::W,
-        //1 => GfxColor::LG,
-        //2 => GfxColor::DG,
-        //3 => GfxColor::B,
-        //_ => todo!(),
-        //};
-        //for x in 0..GFX_SIZE_X {
-        //io.gfx[y * GFX_SIZE_X + x] = c;
-        //}
-        //}
-        //io.draw_graphics();
     }
 }
