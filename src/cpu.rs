@@ -64,7 +64,7 @@ impl Registers {
             l: 0,
             f: 0,
             pc: 0x100,
-            sp: 0,
+            sp: 0xfffe,
             ime: false,
         }
     }
@@ -92,7 +92,11 @@ impl Registers {
     }
     fn read_reg16(&self, r: &Reg16) -> u16 {
         match r {
-            // Reg16::AF => xx,
+            Reg16::AF => {
+                let a = self.a as u16;
+                let f = self.f as u16;
+                (a << 8) | f
+            }
             Reg16::BC => {
                 let b = self.b as u16;
                 let c = self.c as u16;
@@ -110,14 +114,16 @@ impl Registers {
             }
             Reg16::PC => self.pc,
             Reg16::SP => self.sp,
-            _ => panic!(),
         }
     }
     fn write_reg16(&mut self, r: &Reg16, v: u16) {
         let v0 = (v >> 8) as u8;
         let v1 = (v & 0x00ff) as u8;
         match r {
-            // Reg16::AF => xxx,
+            Reg16::AF => {
+                self.a = v0;
+                self.f = v1;
+            }
             Reg16::BC => {
                 self.b = v0;
                 self.c = v1;
@@ -132,7 +138,6 @@ impl Registers {
             }
             Reg16::PC => self.pc = v,
             Reg16::SP => self.sp = v,
-            _ => panic!(),
         }
     }
     fn test_f(&self, f: FlagReg) -> bool {

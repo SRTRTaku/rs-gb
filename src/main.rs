@@ -31,18 +31,18 @@ fn main() {
     mmu.dump();
 
     loop {
-        //loop {
+        // loop {
         match io.get_key() {
             Some(-1) => return,
             //Some(_) => break,
             _ => (),
         }
-        //}
+        // }
 
         cpu.run(&mut mmu).unwrap();
         ppu.run(&mut mmu, &mut io).unwrap();
 
-        //println!("{:#?}", cpu);
-        //mmu.dump();
+        // println!("{:#?}", cpu);
+        // mmu.dump();
     }
 }

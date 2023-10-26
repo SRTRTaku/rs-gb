@@ -129,7 +129,7 @@ impl MemoryIF for MMU {
         match addr {
             // ROM1 (unbanked) 16k
             0x0000..=0x7fff => {
-                panic!("rom");
+                panic!("write_byte:rom 0x{:x}", addr);
             }
             // Graphics: VRAM 8k
             0x8000..=0x9fff => {
