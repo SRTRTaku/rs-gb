@@ -122,7 +122,7 @@ impl Registers {
         match r {
             Reg16::AF => {
                 self.a = v0;
-                self.f = v1;
+                self.f = v1 & 0xf0; // bits 0 - 3 are always 0.
             }
             Reg16::BC => {
                 self.b = v0;
