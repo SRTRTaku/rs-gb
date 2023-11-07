@@ -2,8 +2,10 @@ mod decode;
 mod decode_prefix_cb;
 mod execute;
 mod inst;
+
 use crate::memory::MemoryIF;
 use inst::{FlagReg, Reg16, Reg8};
+use std::fmt;
 
 type M = usize;
 #[derive(Debug)]
@@ -154,11 +156,53 @@ impl Registers {
     }
 }
 
+impl fmt::Display for Registers {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "AF: {:#04x} {:02x} ({:#010b} {:08b})\n",
+            self.a, self.f, self.a, self.f
+        )?;
+        write!(f, " (")?;
+        write!(f, "Z: {}, ", b2n(self.test_f(FlagReg::Z)))?;
+        write!(f, "N: {}, ", b2n(self.test_f(FlagReg::N)))?;
+        write!(f, "H: {}, ", b2n(self.test_f(FlagReg::H)))?;
+        write!(f, "C: {}", b2n(self.test_f(FlagReg::C)))?;
+        write!(f, ")\n")?;
+        write!(
+            f,
+            "BC: {:#04x} {:02x} ({:#010b} {:08b})\n",
+            self.b, self.c, self.b, self.c
+        )?;
+        write!(
+            f,
+            "DE: {:#04x} {:02x} ({:#010b} {:08b})\n",
+            self.d, self.e, self.d, self.e
+        )?;
+        write!(
+            f,
+            "HL: {:#04x} {:02x} ({:#010b} {:08b})\n",
+            self.h, self.l, self.h, self.l
+        )?;
+        write!(f, "PC: {:#04x}, ", self.pc)?;
+        write!(f, "SP: {:#04x}\n", self.sp)?;
+        write!(f, "\n")
+    }
+}
+
 fn flag_mask(f: FlagReg) -> u8 {
     match f {
         FlagReg::Z => 0x80,
         FlagReg::N => 0x40,
         FlagReg::H => 0x20,
         FlagReg::C => 0x10,
+    }
+}
+
+fn b2n(b: bool) -> &'static str {
+    if b {
+        "1"
+    } else {
+        "0"
     }
 }

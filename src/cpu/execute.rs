@@ -555,31 +555,41 @@ impl Registers {
     }
     fn daa(&mut self) -> M {
         let a = self.read_reg8(&Reg8::A);
-        let a1 = if a & 0x0f > 9 || self.test_f(FlagReg::H) {
-            if a as u16 + 6 > 0xff {
-                self.set_f(FlagReg::C);
-            }
-            a.wrapping_add(6)
-        } else {
-            a
-        };
-        let a2 = if a & 0xf0 > 0x90 || self.test_f(FlagReg::C) {
-            if a1 as u16 + 0x60 > 0xff {
-                self.set_f(FlagReg::C);
-            }
-            a1.wrapping_add(0x60)
-        } else {
+        let a3 = if self.test_f(FlagReg::N) {
+            let a1 = if self.test_f(FlagReg::H) {
+                a.wrapping_sub(6)
+            } else {
+                a
+            };
             a1
+        } else {
+            let a1 = if a & 0x0f > 9 || self.test_f(FlagReg::H) {
+                if a as u16 + 6 > 0xff {
+                    self.set_f(FlagReg::C);
+                }
+                a.wrapping_add(6)
+            } else {
+                a
+            };
+            let a2 = if a1 & 0xf0 > 0x90 || self.test_f(FlagReg::C) {
+                if a1 as u16 + 0x60 > 0xff {
+                    self.set_f(FlagReg::C);
+                }
+                a1.wrapping_add(0x60)
+            } else {
+                a1
+            };
+            a2
         };
         //// set flags
-        if a2 == 0 {
+        if a3 == 0 {
             self.set_f(FlagReg::Z);
         } else {
             self.clear_f(FlagReg::Z);
         }
         self.clear_f(FlagReg::H);
         ////
-        self.write_reg8(&Reg8::A, a2);
+        self.write_reg8(&Reg8::A, a3);
         let m = 1;
         m
     }
@@ -1705,29 +1715,68 @@ mod tests {
         let mut reg = Registers::new();
         let mut mem = TestMemory::new();
 
-        // 12 + 34 = 46
-        reg.write_reg8(&Reg8::A, 0x12);
-        let i = Inst::Add(Arg8::Reg(Reg8::A), Arg8::Immed(0x34));
-        let _m = reg.execute(i, &mut mem).unwrap();
+        for m in 0..=99 {
+            for n in m..=99 {
+                let m_hex = 16 * (m / 10) + (m % 10);
+                let n_hex = 16 * (n / 10) + (n % 10);
 
-        let i = Inst::Daa;
-        let _m = reg.execute(i, &mut mem).unwrap();
-        assert_eq!(0x46, reg.read_reg8(&Reg8::A));
-        assert_eq!(false, reg.test_f(FlagReg::Z));
-        assert_eq!(false, reg.test_f(FlagReg::H));
-        assert_eq!(false, reg.test_f(FlagReg::C));
+                reg.write_reg16(&Reg16::AF, 0);
+                reg.write_reg8(&Reg8::A, m_hex);
+                let i = Inst::Add(Arg8::Reg(Reg8::A), Arg8::Immed(n_hex));
+                let _m = reg.execute(i, &mut mem).unwrap();
 
-        // 99 + 99 = 198
-        reg.write_reg8(&Reg8::A, 0x99);
-        let i = Inst::Add(Arg8::Reg(Reg8::A), Arg8::Immed(0x99));
-        let _m = reg.execute(i, &mut mem).unwrap();
+                let i = Inst::Daa;
+                let _m = reg.execute(i, &mut mem).unwrap();
 
-        let i = Inst::Daa;
-        let _m = reg.execute(i, &mut mem).unwrap();
-        assert_eq!(0x98, reg.read_reg8(&Reg8::A));
-        assert_eq!(false, reg.test_f(FlagReg::Z));
-        assert_eq!(false, reg.test_f(FlagReg::H));
-        assert_eq!(true, reg.test_f(FlagReg::C));
+                let ans = m + n;
+                let ans_hex = if ans >= 100 {
+                    let ans = ans - 100;
+                    16 * (ans / 10) + (ans % 10)
+                } else {
+                    16 * (ans / 10) + (ans % 10)
+                };
+                let z_des = ans_hex == 0;
+                let c_des = ans >= 100;
+
+                assert_eq!(ans_hex, reg.read_reg8(&Reg8::A));
+                assert_eq!(z_des, reg.test_f(FlagReg::Z));
+                assert_eq!(false, reg.test_f(FlagReg::H));
+                assert_eq!(c_des, reg.test_f(FlagReg::C));
+            }
+        }
+
+        for m in 0..=99 {
+            for n in m..=99 {
+                let m_hex = 16 * (m / 10) + (m % 10);
+                let n_hex = 16 * (n / 10) + (n % 10);
+                println!("{}, {}", m, n);
+
+                reg.write_reg16(&Reg16::AF, 0);
+                reg.write_reg8(&Reg8::A, n_hex);
+                let i = Inst::Sub(Arg8::Reg(Reg8::A), Arg8::Immed(m_hex));
+                let _m = reg.execute(i, &mut mem).unwrap();
+                println!("{}", reg);
+
+                let i = Inst::Daa;
+                let _m = reg.execute(i, &mut mem).unwrap();
+                println!("{}", reg);
+
+                let ans = n - m;
+                let ans_hex = if ans >= 100 {
+                    let ans = ans - 100;
+                    16 * (ans / 10) + (ans % 10)
+                } else {
+                    16 * (ans / 10) + (ans % 10)
+                };
+                let z_des = ans_hex == 0;
+                let c_des = ans >= 100;
+
+                assert_eq!(ans_hex, reg.read_reg8(&Reg8::A));
+                assert_eq!(z_des, reg.test_f(FlagReg::Z));
+                assert_eq!(false, reg.test_f(FlagReg::H));
+                assert_eq!(c_des, reg.test_f(FlagReg::C));
+            }
+        }
     }
     #[test]
     fn cpl() {
