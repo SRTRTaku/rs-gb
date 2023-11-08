@@ -20,6 +20,20 @@ pub enum GfxColor {
     DG,
     B,
 }
+pub enum GbKey {
+    Quit,
+    Run,
+    Step,
+    NextStep,
+    //A,
+    //B,
+    //Right,
+    //Left,
+    //Up,
+    //Down,
+    //Start,
+    //Select,
+}
 
 pub struct Io {
     canvas: WindowCanvas,
@@ -91,14 +105,19 @@ impl Io {
         }
         self.canvas.present();
     }
-    pub fn get_key(&mut self) -> Option<isize> {
+    pub fn get_key(&mut self) -> Option<GbKey> {
         for event in self.event_pump.poll_iter() {
             match event {
-                Event::Quit { .. } => return Some(-1),
+                Event::Quit { .. } => return Some(GbKey::Quit),
                 Event::KeyDown {
                     keycode: Some(key_code),
                     ..
-                } => return Some(1),
+                } => match key_code {
+                    Keycode::F5 => return Some(GbKey::Run),
+                    Keycode::F7 => return Some(GbKey::Step),
+                    Keycode::F10 => return Some(GbKey::NextStep),
+                    _ => (),
+                },
                 _ => (),
             }
         }

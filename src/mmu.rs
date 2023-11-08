@@ -45,10 +45,11 @@ impl MMU {
         self.inbios = false;
     }
 
-    pub fn dump(&self) {
-        println!("rom");
-        let begin = 0x0000;
-        let end = 0x0150;
+    pub fn dump(&self, addr: u16) {
+        let addr = addr as usize;
+        let width = 0x100;
+        let begin = if addr > width { addr - width } else { 0 };
+        let end = addr + width;
         // print header
         print!("     |");
         for i in 0..16 {

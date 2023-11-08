@@ -8,7 +8,6 @@ use inst::{FlagReg, Reg16, Reg8};
 use std::fmt;
 
 type M = usize;
-#[derive(Debug)]
 pub struct Cpu {
     clock_m: M,
     // t = 4m
@@ -26,7 +25,7 @@ impl Cpu {
             m: 0,
         }
     }
-    pub fn run(&mut self, memory: &mut impl MemoryIF) -> Result<(), String> {
+    pub fn run(&mut self, memory: &mut impl MemoryIF) -> Result<u16, String> {
         self.clock_m += 1;
 
         if self.clock_m >= self.m {
@@ -35,7 +34,17 @@ impl Cpu {
             self.m = self.reg.execute(inst, memory)?;
             self.clock_m = 0;
         }
-        Ok(())
+        Ok(self.reg.pc)
+    }
+}
+
+impl fmt::Display for Cpu {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "clock_m: {}, m: {}, reg:\n{}",
+            self.clock_m, self.m, self.reg
+        )
     }
 }
 
@@ -185,8 +194,7 @@ impl fmt::Display for Registers {
             self.h, self.l, self.h, self.l
         )?;
         write!(f, "PC: {:#04x}, ", self.pc)?;
-        write!(f, "SP: {:#04x}\n", self.sp)?;
-        write!(f, "\n")
+        write!(f, "SP: {:#04x}\n", self.sp)
     }
 }
 
