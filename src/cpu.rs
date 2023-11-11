@@ -42,7 +42,7 @@ impl fmt::Display for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "clock_m: {}, m: {}, reg:\n{}",
+            "clock_m: {}, m: {}\nreg:\n{}",
             self.clock_m, self.m, self.reg
         )
     }

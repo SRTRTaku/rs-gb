@@ -57,18 +57,20 @@ impl MMU {
         }
         println!();
 
-        for row in (begin / 16)..(0x8000 / 16) {
+        for row in (begin / 16)..(end / 16) {
             let offset = row * 16;
             print!("{:04x} |", offset);
             for i in 0..16 {
-                print!(" {:02x}", self.rom[offset + i]);
+                let a = offset + i;
+                if a == addr {
+                    print!("\x1b[7m");
+                    print!(" {:02x}", self.read_byte(a as u16));
+                    print!("\x1b[0m");
+                } else {
+                    print!(" {:02x}", self.read_byte(a as u16));
+                }
             }
             println!();
-
-            // omit
-            if offset > end {
-                break;
-            }
         }
     }
 }
