@@ -785,7 +785,7 @@ impl Registers {
             }
             _ => return Err(format!("rl, Invalid instruction: {:?}", x)),
         };
-        let c = self.test_f(FlagReg::Z);
+        let c = self.test_f(FlagReg::C);
         let (v1, c1) = rot_through_carry(v, c, Direction::Left);
         //
         if v1 == 0 {
@@ -858,7 +858,7 @@ impl Registers {
             }
             _ => return Err(format!("rr, Invalid instruction: {:?}", x)),
         };
-        let c = self.test_f(FlagReg::Z);
+        let c = self.test_f(FlagReg::C);
         let (v1, c1) = rot_through_carry(v, c, Direction::Right);
         //
         if v1 == 0 {
@@ -1941,6 +1941,22 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
+
+        // ---
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+        reg.set_f(FlagReg::C);
+
+        reg.write_reg16(&Reg16::HL, 0x100);
+        mem.write_byte(0x100, 0b00000000);
+        let i = Inst::Rl(Arg8::IndReg(Reg16::HL));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0b00000001, mem.read_byte(0x100));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
     }
     #[test]
     fn rrc_r() {
@@ -1972,6 +1988,22 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
+
+        // ---
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+        reg.set_f(FlagReg::C);
+
+        reg.write_reg16(&Reg16::HL, 0x100);
+        mem.write_byte(0x100, 0b00000000);
+        let i = Inst::Rr(Arg8::IndReg(Reg16::HL));
+        let m = reg.execute(i, &mut mem).unwrap();
+        assert_eq!(4, m);
+        assert_eq!(0b10000000, mem.read_byte(0x100));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
     }
     #[test]
     fn sla_r() {

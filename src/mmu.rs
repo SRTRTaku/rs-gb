@@ -47,9 +47,13 @@ impl MMU {
 
     pub fn dump(&self, addr: u16) {
         let addr = addr as usize;
-        let width = 0x100;
+        let width = 0x0020;
         let begin = if addr > width { addr - width } else { 0 };
-        let end = addr + width;
+        let end = if addr <= 0xffff - width {
+            addr + width
+        } else {
+            0xffff
+        };
         // print header
         print!("     |");
         for i in 0..16 {
@@ -57,7 +61,7 @@ impl MMU {
         }
         println!();
 
-        for row in (begin / 16)..(end / 16) {
+        for row in (begin / 16)..=(end / 16) {
             let offset = row * 16;
             print!("{:04x} |", offset);
             for i in 0..16 {
@@ -69,6 +73,17 @@ impl MMU {
                 } else {
                     print!(" {:02x}", self.read_byte(a as u16));
                 }
+            }
+            println!();
+        }
+
+        println!("hram:");
+        for row in (0xff80 / 16)..=(0xffff / 16) {
+            let offset = row * 16;
+            print!("{:04x} |", offset);
+            for i in 0..16 {
+                let a = offset + i;
+                print!(" {:02x}", self.read_byte(a as u16));
             }
             println!();
         }
