@@ -556,26 +556,26 @@ impl Registers {
     fn daa(&mut self) -> M {
         let a = self.read_reg8(&Reg8::A);
         let a3 = if self.test_f(FlagReg::N) {
-            let a1 = if self.test_f(FlagReg::H) {
-                a.wrapping_sub(6)
+            let a1 = if self.test_f(FlagReg::C) {
+                a.wrapping_sub(0x60)
             } else {
                 a
             };
-            a1
+            let a2 = if self.test_f(FlagReg::H) {
+                a1.wrapping_sub(0x6)
+            } else {
+                a1
+            };
+            a2
         } else {
-            let a1 = if a & 0x0f > 9 || self.test_f(FlagReg::H) {
-                if a as u16 + 6 > 0xff {
-                    self.set_f(FlagReg::C);
-                }
-                a.wrapping_add(6)
+            let a1 = if a > 0x99 || self.test_f(FlagReg::C) {
+                self.set_f(FlagReg::C);
+                a.wrapping_add(0x60)
             } else {
                 a
             };
-            let a2 = if a1 & 0xf0 > 0x90 || self.test_f(FlagReg::C) {
-                if a1 as u16 + 0x60 > 0xff {
-                    self.set_f(FlagReg::C);
-                }
-                a1.wrapping_add(0x60)
+            let a2 = if a1 & 0x0f > 0x09 || self.test_f(FlagReg::H) {
+                a1.wrapping_add(0x6)
             } else {
                 a1
             };
