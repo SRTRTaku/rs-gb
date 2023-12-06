@@ -1,10 +1,5 @@
 use crate::io::{GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
-use crate::memory::MemoryIF;
-
-const LCDC: u16 = 0xff40;
-const SCY: u16 = 0xff42;
-const SCX: u16 = 0xff43;
-const BGP: u16 = 0xff47;
+use crate::memory::{MemoryIF, BGP, LCDC, SCX, SCY};
 
 pub struct Ppu {
     mode: Mode,

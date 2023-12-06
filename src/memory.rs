@@ -1,3 +1,13 @@
+//// I/O Rregisters
+// LCD
+pub const LCDC: u16 = 0xff40;
+pub const SCY: u16 = 0xff42;
+pub const SCX: u16 = 0xff43;
+pub const BGP: u16 = 0xff47;
+//// Interrupt
+pub const IF: u16 = 0xff0f; // Interrupt flag
+pub const IE: u16 = 0xffff; // Interrupt enable
+
 pub trait MemoryIF {
     fn read_byte(&self, addr: u16) -> u8;
     fn read_word(&self, addr: u16) -> u16 {

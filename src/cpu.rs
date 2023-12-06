@@ -3,8 +3,8 @@ mod decode_prefix_cb;
 mod execute;
 mod inst;
 
-use crate::memory::MemoryIF;
-use inst::{FlagReg, Reg16, Reg8};
+use crate::memory::{MemoryIF, IE, IF};
+use inst::{FlagReg, Inst, Reg16, Reg8};
 use std::fmt;
 
 type M = usize;
@@ -15,6 +15,7 @@ pub struct Cpu {
     // Clock for last instr
     m: M,
     // t = 4m
+    ime: bool,
 }
 
 impl Cpu {
@@ -23,6 +24,7 @@ impl Cpu {
             clock_m: 0,
             reg: Registers::new(),
             m: 0,
+            ime: false,
         }
     }
     pub fn run(&mut self, memory: &mut impl MemoryIF) -> Result<u16, String> {
@@ -31,8 +33,40 @@ impl Cpu {
         if self.clock_m >= self.m {
             let (inst, addvance) = decode::decode(self.reg.pc, memory)?;
             self.reg.pc += addvance;
-            self.m = self.reg.execute(inst, memory)?;
+            self.m = self.reg.execute(inst, memory, &mut self.ime)?;
             self.clock_m = 0;
+
+            // Interrupts
+            if self.ime {
+                let i_flag = memory.read_byte(IF);
+                let i_enable = memory.read_byte(IE);
+                let masked = i_flag & i_enable;
+                if masked != 0 {
+                    self.ime = false;
+                    self.m += 5;
+                    if masked & 0x01 != 0 {
+                        memory.write_byte(IF, i_flag & !0x01);
+                        todo!();
+                    } else if masked & 0x02 != 0 {
+                        memory.write_byte(IF, i_flag & !0x02);
+                        todo!();
+                    } else if masked & 0x04 != 0 {
+                        memory.write_byte(IF, i_flag & !0x04);
+                        _ = self
+                            .reg
+                            .execute(Inst::Push16(Reg16::PC), memory, &mut self.ime)?;
+                        self.reg.pc = 0x50;
+                    } else if masked & 0x08 != 0 {
+                        memory.write_byte(IF, i_flag & !0x08);
+                        todo!();
+                    } else if masked & 0x10 != 0 {
+                        memory.write_byte(IF, i_flag & !0x10);
+                        todo!();
+                    } else {
+                        return Err(format!("Cpu::run: invalid if or ie"));
+                    }
+                }
+            }
         }
         Ok(self.reg.pc)
     }
@@ -60,7 +94,6 @@ pub struct Registers {
     f: u8,
     pc: u16,
     sp: u16,
-    ime: bool,
 }
 
 impl Registers {
@@ -76,7 +109,6 @@ impl Registers {
             f: 0,
             pc: 0x100,
             sp: 0xfffe,
-            ime: false,
         }
     }
     fn read_reg8(&self, r: &Reg8) -> u8 {
