@@ -7,6 +7,7 @@ pub struct Ppu {
     line: usize,
 }
 
+#[derive(Copy, Clone)]
 enum Mode {
     Mode0,
     Mode1,
