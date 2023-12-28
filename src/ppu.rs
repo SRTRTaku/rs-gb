@@ -1,5 +1,5 @@
 use crate::io::{GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
-use crate::memory::{MemoryIF, BGP, LCDC, SCX, SCY};
+use crate::memory::{MemoryIF, BGP, IF, LCDC, LY, LYC, SCX, SCY, STAT};
 
 pub struct Ppu {
     mode: Mode,
@@ -24,6 +24,7 @@ impl Ppu {
     }
     pub fn run(&mut self, memory: &mut impl MemoryIF, io: &mut Io) -> Result<(), String> {
         self.clock_m += 1;
+        let stat = memory.read_byte(STAT);
         match self.mode {
             // OAM scan
             Mode::Mode2 => {
@@ -52,10 +53,13 @@ impl Ppu {
                     if self.line >= 144 {
                         io.present();
                         self.mode = Mode::Mode1;
+                        // VBlank interrupt
+                        let i_flag = memory.read_byte(IF);
+                        memory.write_byte(IF, i_flag | 0x01);
                     } else {
                         self.mode = Mode::Mode2;
                     }
-                    memory.write_byte(0xff44, self.line as u8);
+                    memory.write_byte(LY, self.line as u8);
                 }
             }
             // Vertical blank
@@ -71,8 +75,29 @@ impl Ppu {
                 }
             }
         }
+        // Update LCD status
+        let mut stat = stat & 0xf8; // masked
+        if self.line as u8 == memory.read_byte(LYC) {
+            stat |= 0x04
+        }
+        stat += self.mode as u8;
+        memory.write_byte(STAT, stat);
+        // STAT interrupt
+        if stat_int(stat) {
+            let i_flag = memory.read_byte(IF);
+            memory.write_byte(IF, i_flag | 0x02);
+        }
+        //
         Ok(())
     }
+}
+fn stat_int(stat: u8) -> bool {
+    let mode = stat & 0x03;
+    let eq = stat & 0x04;
+    ((stat & 0x08 != 0) && (mode == 0))
+        || ((stat & 0x10 != 0) && (mode == 1))
+        || ((stat & 0x20 != 0) && (mode == 2))
+        || ((stat & 0x40 != 0) && (eq != 0))
 }
 
 fn write_a_scanline(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {

@@ -44,24 +44,29 @@ impl Cpu {
                 if masked != 0 {
                     self.ime = false;
                     self.m += 5;
+                    _ = self
+                        .reg
+                        .execute(Inst::Push16(Reg16::PC), memory, &mut self.ime)?;
                     if masked & 0x01 != 0 {
+                        // VBlank
                         memory.write_byte(IF, i_flag & !0x01);
-                        todo!();
+                        self.reg.write_reg16(&Reg16::PC, 0x40);
                     } else if masked & 0x02 != 0 {
+                        // LCD
                         memory.write_byte(IF, i_flag & !0x02);
-                        todo!();
+                        self.reg.write_reg16(&Reg16::PC, 0x48);
                     } else if masked & 0x04 != 0 {
+                        // Timer
                         memory.write_byte(IF, i_flag & !0x04);
-                        _ = self
-                            .reg
-                            .execute(Inst::Push16(Reg16::PC), memory, &mut self.ime)?;
-                        self.reg.pc = 0x50;
+                        self.reg.write_reg16(&Reg16::PC, 0x50);
                     } else if masked & 0x08 != 0 {
+                        // Serial
                         memory.write_byte(IF, i_flag & !0x08);
-                        todo!();
+                        self.reg.write_reg16(&Reg16::PC, 0x58);
                     } else if masked & 0x10 != 0 {
+                        // Joypad
                         memory.write_byte(IF, i_flag & !0x10);
-                        todo!();
+                        self.reg.write_reg16(&Reg16::PC, 0x60);
                     } else {
                         return Err(format!("Cpu::run: invalid if or ie"));
                     }

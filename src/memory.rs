@@ -1,8 +1,11 @@
 //// I/O Rregisters
 // LCD
 pub const LCDC: u16 = 0xff40;
+pub const STAT: u16 = 0xff41;
 pub const SCY: u16 = 0xff42;
 pub const SCX: u16 = 0xff43;
+pub const LY: u16 = 0xff44;
+pub const LYC: u16 = 0xff45;
 pub const BGP: u16 = 0xff47;
 //// Interrupt
 pub const IF: u16 = 0xff0f; // Interrupt flag
