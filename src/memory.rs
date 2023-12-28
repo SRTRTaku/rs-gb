@@ -1,4 +1,9 @@
 //// I/O Rregisters
+// Timer and Divider
+pub const DIV: u16 = 0xff04;
+pub const TIMA: u16 = 0xff05;
+pub const TMA: u16 = 0xff06;
+pub const TAC: u16 = 0xff07;
 // LCD
 pub const LCDC: u16 = 0xff40;
 pub const STAT: u16 = 0xff41;

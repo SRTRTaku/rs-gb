@@ -1,4 +1,4 @@
-use crate::memory::MemoryIF;
+use crate::memory::{MemoryIF, DIV};
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
@@ -177,6 +177,7 @@ impl MemoryIF for MMU {
             // I/O Register
             0xff00..=0xff7f => {
                 let index = (addr - 0xff00) as usize;
+                let val = if addr == DIV { 0 } else { val };
                 self.ioreg[index] = val;
             }
             // Zero-page

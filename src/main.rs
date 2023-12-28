@@ -3,12 +3,14 @@ use io::{GbKey, GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
 use mmu::MMU;
 use ppu::Ppu;
 use std::env;
+use timer::Timer;
 
 mod cpu;
 mod io;
 mod memory;
 mod mmu;
 mod ppu;
+mod timer;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -37,6 +39,7 @@ fn main() {
     let mut io = Io::new();
     let mut cpu = Cpu::new();
     let mut ppu = Ppu::new();
+    let mut timer = Timer::new();
 
     println!("{}", cpu);
     mmu.dump(0x100);
@@ -65,6 +68,7 @@ fn main() {
 
         let pc = cpu.run(&mut mmu).unwrap();
         ppu.run(&mut mmu, &mut io).unwrap();
+        timer.run(&mut mmu).unwrap();
 
         if let Some(break_addr) = op_break_addr {
             if pc == break_addr {
