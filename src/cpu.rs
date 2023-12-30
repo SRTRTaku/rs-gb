@@ -16,6 +16,7 @@ pub struct Cpu {
     m: M,
     // t = 4m
     ime: bool,
+    halt: bool,
 }
 
 impl Cpu {
@@ -25,23 +26,27 @@ impl Cpu {
             reg: Registers::new(),
             m: 0,
             ime: false,
+            halt: false,
         }
     }
     pub fn run(&mut self, memory: &mut impl MemoryIF) -> Result<u16, String> {
         self.clock_m += 1;
 
-        if self.clock_m >= self.m {
-            let (inst, addvance) = decode::decode(self.reg.pc, memory)?;
-            self.reg.pc += addvance;
-            self.m = self.reg.execute(inst, memory, &mut self.ime)?;
+        if (self.clock_m >= self.m) || self.halt {
             self.clock_m = 0;
+            if !self.halt {
+                let (inst, addvance) = decode::decode(self.reg.pc, memory)?;
+                self.reg.pc += addvance;
+                (self.m, self.halt) = self.reg.execute(inst, memory, &mut self.ime)?;
+            }
 
             // Interrupts
-            if self.ime {
-                let i_flag = memory.read_byte(IF);
-                let i_enable = memory.read_byte(IE);
-                let masked = i_flag & i_enable;
-                if masked != 0 {
+            let i_flag = memory.read_byte(IF);
+            let i_enable = memory.read_byte(IE);
+            let masked = i_flag & i_enable;
+            if masked != 0 {
+                self.halt = false;
+                if self.ime {
                     self.ime = false;
                     self.m += 5;
                     _ = self
@@ -81,8 +86,8 @@ impl fmt::Display for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "clock_m: {}, m: {}\nreg:\n{}",
-            self.clock_m, self.m, self.reg
+            "clock_m: {}, m: {}, ime: {}, halt: {}\nreg:\n{}",
+            self.clock_m, self.m, self.ime, self.halt, self.reg
         )
     }
 }
