@@ -719,11 +719,7 @@ impl Registers {
     fn rlca(&mut self) -> M {
         let a = self.read_reg8(&Reg8::A);
         let (a1, c) = rot(a, Direction::Left);
-        if a1 == 0 {
-            self.set_f(FlagReg::Z);
-        } else {
-            self.clear_f(FlagReg::Z);
-        }
+        self.clear_f(FlagReg::Z);
         self.clear_f(FlagReg::N);
         self.clear_f(FlagReg::H);
         if c {
@@ -738,11 +734,7 @@ impl Registers {
         let a = self.read_reg8(&Reg8::A);
         let c = self.test_f(FlagReg::C);
         let (a1, c1) = rot_through_carry(a, c, Direction::Left);
-        if a1 == 0 {
-            self.set_f(FlagReg::Z);
-        } else {
-            self.clear_f(FlagReg::Z);
-        }
+        self.clear_f(FlagReg::Z);
         self.clear_f(FlagReg::N);
         self.clear_f(FlagReg::H);
         if c1 {
@@ -756,11 +748,7 @@ impl Registers {
     fn rrca(&mut self) -> M {
         let a = self.read_reg8(&Reg8::A);
         let (a1, c) = rot(a, Direction::Right);
-        if a1 == 0 {
-            self.set_f(FlagReg::Z);
-        } else {
-            self.clear_f(FlagReg::Z);
-        }
+        self.clear_f(FlagReg::Z);
         self.clear_f(FlagReg::N);
         self.clear_f(FlagReg::H);
         if c {
@@ -775,11 +763,7 @@ impl Registers {
         let a = self.read_reg8(&Reg8::A);
         let c = self.test_f(FlagReg::C);
         let (a1, c1) = rot_through_carry(a, c, Direction::Right);
-        if a1 == 0 {
-            self.set_f(FlagReg::Z);
-        } else {
-            self.clear_f(FlagReg::Z);
-        }
+        self.clear_f(FlagReg::Z);
         self.clear_f(FlagReg::N);
         self.clear_f(FlagReg::H);
         if c1 {
@@ -2068,10 +2052,10 @@ mod tests {
     //
     #[test]
     fn rlca() {
-        let mut reg = Registers::new();
         let mut mem = TestMemory::new();
         let mut ime = false;
 
+        let mut reg = Registers::new();
         reg.write_reg8(&Reg8::A, 0b10011001);
         let i = Inst::Rlca;
         let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
@@ -2082,13 +2066,23 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
+
+        let mut reg = Registers::new();
+        reg.write_reg8(&Reg8::A, 0x00);
+        let i = Inst::Rlca;
+        let _ = reg.execute(i, &mut mem, &mut ime).unwrap();
+        assert_eq!(0x00, reg.read_reg8(&Reg8::A));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
     }
     #[test]
     fn rla() {
-        let mut reg = Registers::new();
         let mut mem = TestMemory::new();
         let mut ime = false;
 
+        let mut reg = Registers::new();
         reg.write_reg8(&Reg8::A, 0b00011001);
         reg.set_f(FlagReg::C);
         let i = Inst::Rla;
@@ -2100,13 +2094,24 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(false, reg.test_f(FlagReg::C));
+
+        let mut reg = Registers::new();
+        reg.write_reg8(&Reg8::A, 0b10000000);
+        reg.clear_f(FlagReg::C);
+        let i = Inst::Rla;
+        let _ = reg.execute(i, &mut mem, &mut ime).unwrap();
+        assert_eq!(0x00, reg.read_reg8(&Reg8::A));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
     }
     #[test]
     fn rrca() {
-        let mut reg = Registers::new();
         let mut mem = TestMemory::new();
         let mut ime = false;
 
+        let mut reg = Registers::new();
         reg.write_reg8(&Reg8::A, 0b10011001);
         let i = Inst::Rrca;
         let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
@@ -2117,13 +2122,23 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
+
+        let mut reg = Registers::new();
+        reg.write_reg8(&Reg8::A, 0x00);
+        let i = Inst::Rrca;
+        let _ = reg.execute(i, &mut mem, &mut ime).unwrap();
+        assert_eq!(0x00, reg.read_reg8(&Reg8::A));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
     }
     #[test]
     fn rra() {
-        let mut reg = Registers::new();
         let mut mem = TestMemory::new();
         let mut ime = false;
 
+        let mut reg = Registers::new();
         reg.write_reg8(&Reg8::A, 0b10011000);
         reg.set_f(FlagReg::C);
         let i = Inst::Rra;
@@ -2135,6 +2150,17 @@ mod tests {
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(false, reg.test_f(FlagReg::C));
+
+        let mut reg = Registers::new();
+        reg.write_reg8(&Reg8::A, 0b00000001);
+        reg.clear_f(FlagReg::C);
+        let i = Inst::Rra;
+        let _ = reg.execute(i, &mut mem, &mut ime).unwrap();
+        assert_eq!(0x00, reg.read_reg8(&Reg8::A));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
     }
     #[test]
     fn rlc_r() {
