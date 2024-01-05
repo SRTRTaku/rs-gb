@@ -685,11 +685,33 @@ impl Registers {
     }
     fn ld16_hl_sp_dd(&mut self, dd: i8) -> M {
         let sp = self.read_reg16(&Reg16::SP);
-        let ans = if dd > 0 {
-            sp.wrapping_add(dd as u16)
+        let v = if dd >= 0 {
+            dd as u16
         } else {
-            sp.wrapping_sub((-dd) as u16)
+            !((-dd) as u16) + 1
         };
+        let ans = sp.wrapping_add(v);
+        //// set flags
+        // Z & N
+        self.clear_f(FlagReg::Z);
+        self.clear_f(FlagReg::N);
+        // H
+        let hsp = 0x000f & sp;
+        let hv = 0x000f & v;
+        if hsp + hv > 0x000f {
+            self.set_f(FlagReg::H);
+        } else {
+            self.clear_f(FlagReg::H);
+        }
+        // C
+        let csp = 0x00ff & sp;
+        let cv = 0x00ff & v;
+        if csp + cv > 0x00ff {
+            self.set_f(FlagReg::C);
+        } else {
+            self.clear_f(FlagReg::C);
+        }
+        ////
         self.write_reg16(&Reg16::HL, ans);
         let m = 3;
         m
@@ -1981,10 +2003,10 @@ mod tests {
     }
     #[test]
     fn ld_hl_sp_dd() {
-        let mut reg = Registers::new();
         let mut mem = TestMemory::new();
         let mut ime = false;
 
+        let mut reg = Registers::new();
         reg.write_reg16(&Reg16::HL, 0x0000);
         reg.write_reg16(&Reg16::SP, 0x0100);
         let i = Inst::Ld16HLSP(-1);
@@ -1992,6 +2014,54 @@ mod tests {
         assert_eq!(3, m);
         assert_eq!(false, h);
         assert_eq!(0x00ff, reg.read_reg16(&Reg16::HL));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
+
+        let mut reg = Registers::new();
+        reg.write_reg16(&Reg16::HL, 0x0000);
+        reg.write_reg16(&Reg16::SP, 0x0001);
+        let i = Inst::Ld16HLSP(-1);
+        let _ = reg.execute(i, &mut mem, &mut ime).unwrap();
+        assert_eq!(0x0000, reg.read_reg16(&Reg16::HL));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(true, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
+
+        let mut reg = Registers::new();
+        reg.write_reg16(&Reg16::HL, 0x0000);
+        reg.write_reg16(&Reg16::SP, 0x0010);
+        let i = Inst::Ld16HLSP(-1);
+        let _ = reg.execute(i, &mut mem, &mut ime).unwrap();
+        assert_eq!(0x000f, reg.read_reg16(&Reg16::HL));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(false, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
+
+        let mut reg = Registers::new();
+        reg.write_reg16(&Reg16::HL, 0x0000);
+        reg.write_reg16(&Reg16::SP, 0x000f);
+        let i = Inst::Ld16HLSP(1);
+        let _ = reg.execute(i, &mut mem, &mut ime).unwrap();
+        assert_eq!(0x0010, reg.read_reg16(&Reg16::HL));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(true, reg.test_f(FlagReg::H));
+        assert_eq!(false, reg.test_f(FlagReg::C));
+
+        let mut reg = Registers::new();
+        reg.write_reg16(&Reg16::HL, 0x0000);
+        reg.write_reg16(&Reg16::SP, 0x00ff);
+        let i = Inst::Ld16HLSP(1);
+        let _ = reg.execute(i, &mut mem, &mut ime).unwrap();
+        assert_eq!(0x0100, reg.read_reg16(&Reg16::HL));
+        assert_eq!(false, reg.test_f(FlagReg::Z));
+        assert_eq!(false, reg.test_f(FlagReg::N));
+        assert_eq!(true, reg.test_f(FlagReg::H));
+        assert_eq!(true, reg.test_f(FlagReg::C));
     }
     //
     // rotate & shift instructions
