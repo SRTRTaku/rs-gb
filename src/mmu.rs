@@ -18,8 +18,8 @@ pub struct MMU {
     ram_bank: usize,
     bios: [u8; 0x0100],                // GameBoy BIOS code 256 byte
     rom: [u8; 0x4000 * ROM_BANK_MAX],  // Cartridge ROM 32k byte
-    vram: [u8; 0x2000 * RAM_BANK_MAX], // Graphics RAM 8k byte
-    eram: [u8; 0x2000],                // Cargridge (External) RAM 8k byte
+    vram: [u8; 0x2000],                // Graphics RAM 8k byte
+    eram: [u8; 0x2000 * RAM_BANK_MAX], // Cargridge (External) RAM 8k byte
     wram: [u8; 0x2000],                // Working RAM 8k byte
     ioreg: [u8; 0x0080],               // I/O Registers
     zram: [u8; 0x0080],                // Zero-page Ram 128 byte
@@ -36,8 +36,8 @@ impl MMU {
             ram_bank: 0,
             bios: [0; 0x0100],
             rom: [0; 0x4000 * ROM_BANK_MAX],
-            vram: [0; 0x2000 * RAM_BANK_MAX],
-            eram: [0; 0x2000],
+            vram: [0; 0x2000],
+            eram: [0; 0x2000 * RAM_BANK_MAX],
             wram: [0; 0x2000],
             ioreg: [0; 0x0080],
             zram: [0; 0x0080],
@@ -206,7 +206,7 @@ impl MemoryIF for MMU {
             // External RAM 8k
             0xa000..=0xbfff => {
                 let index = (addr - 0xa000) as usize;
-                self.eram[index] = val;
+                self.eram[self.ram_bank * 0x2000 + index] = val;
             }
             // Working RAM 8k
             0xc000..=0xdfff => {
