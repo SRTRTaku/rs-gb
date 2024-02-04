@@ -1,5 +1,5 @@
 use super::inst::{Arg16, Arg8, FlagReg, Inst, JpFlag, Reg16, Reg8};
-use super::{Registers, M};
+use super::{Flags, Registers, M};
 use crate::memory::MemoryIF;
 
 impl Registers {
@@ -8,8 +8,9 @@ impl Registers {
         inst: Inst,
         memory: &mut impl MemoryIF,
         ime: &mut bool,
-    ) -> Result<(M, bool), String> {
-        let mut h = false;
+    ) -> Result<(M, Flags), String> {
+        let mut halt = false;
+        let mut stop = false;
         let m = match inst {
             Inst::Ld8(dist, src) => self.ld8(dist, src, memory)?,
             Inst::Ld16(dist, src) => self.ld16(dist, src, memory)?,
@@ -50,8 +51,8 @@ impl Registers {
             Inst::Ccf => self.ccf(),
             Inst::Scf => self.scf(),
             Inst::Nop => 1,
-            Inst::Halt => self.halt(&mut h),
-            Inst::Stop => todo!(),
+            Inst::Halt => self.halt(&mut halt),
+            Inst::Stop => self.stop(&mut stop), //return Err("stop".to_string()), //todo!(),
             Inst::Di => self.di(ime),
             Inst::Ei => self.ei(ime),
             Inst::Jp(nn) => self.jp_nn(nn),
@@ -67,7 +68,7 @@ impl Registers {
             Inst::Rst(n) => self.rst_n(n, memory),
             i => return Err(format!("execute, Invalid instruction: {:?}", i)),
         };
-        Ok((m, h))
+        Ok((m, Flags { halt, stop }))
     }
 
     fn ld8(&mut self, dest: Arg8, src: Arg8, memory: &mut impl MemoryIF) -> Result<M, String> {
@@ -1141,8 +1142,12 @@ impl Registers {
         self.set_f(FlagReg::C);
         1
     }
-    fn halt(&mut self, h: &mut bool) -> M {
-        *h = true;
+    fn halt(&mut self, halt: &mut bool) -> M {
+        *halt = true;
+        0
+    }
+    fn stop(&mut self, stop: &mut bool) -> M {
+        *stop = true;
         0
     }
     fn di(&mut self, ime: &mut bool) -> M {
@@ -1346,6 +1351,10 @@ mod tests {
         }
     }
 
+    const FLAGS_FS: Flags = Flags {
+        halt: false,
+        stop: false,
+    };
     //
     // 8-bit load instructions
     //
@@ -1357,9 +1366,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::B, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, reg.read_reg8(&Reg8::A));
     }
     #[test]
@@ -1369,9 +1378,9 @@ mod tests {
         let mut ime = false;
 
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Immed(0x12));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, reg.read_reg8(&Reg8::A));
     }
     #[test]
@@ -1383,9 +1392,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, reg.read_reg8(&Reg8::A));
     }
     #[test]
@@ -1397,9 +1406,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         reg.write_reg8(&Reg8::A, 0x12);
         let i = Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Reg(Reg8::A));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
     #[test]
@@ -1410,9 +1419,9 @@ mod tests {
 
         reg.write_reg16(&Reg16::HL, 0x100);
         let i = Inst::Ld8(Arg8::IndReg(Reg16::HL), Arg8::Immed(0x12));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
     #[test]
@@ -1424,9 +1433,9 @@ mod tests {
         reg.write_reg16(&Reg16::BC, 0x100);
         mem.write_byte(0x100, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::BC));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, reg.read_reg8(&Reg8::A));
     }
     #[test]
@@ -1437,9 +1446,9 @@ mod tests {
 
         mem.write_byte(0x100, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::Ind(0x100));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, reg.read_reg8(&Reg8::A));
     }
     #[test]
@@ -1451,9 +1460,9 @@ mod tests {
         reg.write_reg8(&Reg8::A, 0x12);
         reg.write_reg16(&Reg16::DE, 0x100);
         let i = Inst::Ld8(Arg8::IndReg(Reg16::DE), Arg8::Reg(Reg8::A));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
     #[test]
@@ -1464,9 +1473,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::A, 0x12);
         let i = Inst::Ld8(Arg8::Ind(0x100), Arg8::Reg(Reg8::A));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, mem.read_byte(0x100));
     }
     #[test]
@@ -1477,9 +1486,9 @@ mod tests {
 
         mem.write_byte(0xff12, 0x34);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIo(0x12));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x34, reg.read_reg8(&Reg8::A));
     }
     #[test]
@@ -1490,9 +1499,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::A, 0x34);
         let i = Inst::Ld8(Arg8::IndIo(0x12), Arg8::Reg(Reg8::A));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x34, mem.read_byte(0xff12));
     }
     #[test]
@@ -1504,9 +1513,9 @@ mod tests {
         mem.write_byte(0xff12, 0x34);
         reg.write_reg8(&Reg8::C, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndIoC);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x34, reg.read_reg8(&Reg8::A));
     }
     #[test]
@@ -1518,9 +1527,9 @@ mod tests {
         reg.write_reg8(&Reg8::A, 0x34);
         reg.write_reg8(&Reg8::C, 0x12);
         let i = Inst::Ld8(Arg8::IndIoC, Arg8::Reg(Reg8::A));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x34, mem.read_byte(0xff12));
     }
     #[test]
@@ -1532,9 +1541,9 @@ mod tests {
         reg.write_reg8(&Reg8::A, 0x12);
         reg.write_reg16(&Reg16::HL, 0x100);
         let i = Inst::Ld8(Arg8::IndIncHL, Arg8::Reg(Reg8::A));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, mem.read_byte(0x100));
         assert_eq!(0x101, reg.read_reg16(&Reg16::HL));
     }
@@ -1547,9 +1556,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0x12);
         let i = Inst::Ld8(Arg8::Reg(Reg8::A), Arg8::IndDecHL);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x12, reg.read_reg8(&Reg8::A));
         assert_eq!(0xff, reg.read_reg16(&Reg16::HL));
     }
@@ -1564,9 +1573,9 @@ mod tests {
         let mut ime = false;
 
         let i = Inst::Ld16(Arg16::Reg(Reg16::BC), Arg16::Immed(0x1234));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x1234, reg.read_reg16(&Reg16::BC));
     }
     #[test]
@@ -1577,9 +1586,9 @@ mod tests {
 
         reg.write_reg16(&Reg16::SP, 0x1234);
         let i = Inst::Ld16(Arg16::Ind(0x100), Arg16::Reg(Reg16::SP));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(5, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x1234, mem.read_word(0x100));
     }
     #[test]
@@ -1590,9 +1599,9 @@ mod tests {
 
         reg.write_reg16(&Reg16::HL, 0x1234);
         let i = Inst::Ld16(Arg16::Reg(Reg16::SP), Arg16::Reg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x1234, reg.read_reg16(&Reg16::SP));
     }
     #[test]
@@ -1604,9 +1613,9 @@ mod tests {
         reg.write_reg16(&Reg16::SP, 0x100);
         reg.write_reg16(&Reg16::BC, 0x1234);
         let i = Inst::Push16(Reg16::BC);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x100 - 2, reg.read_reg16(&Reg16::SP));
         assert_eq!(0x1234, mem.read_word(0x100 - 2));
     }
@@ -1619,9 +1628,9 @@ mod tests {
         mem.write_word(0x100, 0x1234);
         reg.write_reg16(&Reg16::SP, 0x100);
         let i = Inst::Pop16(Reg16::DE);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x100 + 2, reg.read_reg16(&Reg16::SP));
         assert_eq!(0x1234, reg.read_reg16(&Reg16::DE));
     }
@@ -1637,9 +1646,9 @@ mod tests {
         reg.write_reg8(&Reg8::A, 0xff);
         reg.write_reg8(&Reg8::B, 0x01);
         let i = Inst::Add(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::B));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x00, reg.read_reg8(&Reg8::A));
         assert_eq!(true, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -1655,9 +1664,9 @@ mod tests {
         reg.write_reg8(&Reg8::A, 0xfe);
         reg.set_f(FlagReg::C);
         let i = Inst::Adc(Arg8::Reg(Reg8::A), Arg8::Immed(0x01));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x00, reg.read_reg8(&Reg8::A));
         assert_eq!(true, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -1674,9 +1683,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0xff);
         let i = Inst::Sub(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x02, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(true, reg.test_f(FlagReg::N));
@@ -1693,9 +1702,9 @@ mod tests {
         reg.write_reg8(&Reg8::C, 0x01);
         reg.set_f(FlagReg::C);
         let i = Inst::Sbc(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::C));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0xfd, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(true, reg.test_f(FlagReg::N));
@@ -1710,9 +1719,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::A, 0b101010);
         let i = Inst::And(Arg8::Reg(Reg8::A), Arg8::Immed(0b010101));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x00, reg.read_reg8(&Reg8::A));
         assert_eq!(true, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -1729,9 +1738,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0b11001010);
         let i = Inst::Xor(Arg8::Reg(Reg8::A), Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b01100110, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -1747,9 +1756,9 @@ mod tests {
         reg.write_reg8(&Reg8::A, 0b10101100);
         reg.write_reg8(&Reg8::D, 0b11001010);
         let i = Inst::Or(Arg8::Reg(Reg8::A), Arg8::Reg(Reg8::D));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b11101110, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -1764,9 +1773,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::A, 0x01);
         let i = Inst::Cp(Arg8::Reg(Reg8::A), Arg8::Immed(0xff));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x01, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(true, reg.test_f(FlagReg::N));
@@ -1782,9 +1791,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0x7f);
         let i = Inst::Inc(Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x80, mem.read_byte(0x100));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -1799,9 +1808,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::E, 0x10);
         let i = Inst::Dec(Arg8::Reg(Reg8::E));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x0f, reg.read_reg8(&Reg8::E));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(true, reg.test_f(FlagReg::N));
@@ -1885,9 +1894,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::A, 0xf0);
         let i = Inst::Cpl;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x0f, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(true, reg.test_f(FlagReg::N));
@@ -1906,9 +1915,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0xffff);
         reg.write_reg16(&Reg16::BC, 0x0001);
         let i = Inst::Add16(Arg16::Reg(Reg16::HL), Arg16::Reg(Reg16::BC));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x0000, reg.read_reg16(&Reg16::HL));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -1923,9 +1932,9 @@ mod tests {
 
         reg.write_reg16(&Reg16::DE, 0x000f);
         let i = Inst::Inc16(Arg16::Reg(Reg16::DE));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x0010, reg.read_reg16(&Reg16::DE));
     }
     #[test]
@@ -1936,9 +1945,9 @@ mod tests {
         let mut reg = Registers::new();
         reg.write_reg16(&Reg16::SP, 0x0100);
         let i = Inst::Add16SP(-1);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x00ff, reg.read_reg16(&Reg16::SP));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -1994,9 +2003,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x0000);
         reg.write_reg16(&Reg16::SP, 0x0100);
         let i = Inst::Ld16HLSP(-1);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x00ff, reg.read_reg16(&Reg16::HL));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2058,9 +2067,9 @@ mod tests {
         let mut reg = Registers::new();
         reg.write_reg8(&Reg8::A, 0b10011001);
         let i = Inst::Rlca;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b00110011, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2086,9 +2095,9 @@ mod tests {
         reg.write_reg8(&Reg8::A, 0b00011001);
         reg.set_f(FlagReg::C);
         let i = Inst::Rla;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b00110011, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2114,9 +2123,9 @@ mod tests {
         let mut reg = Registers::new();
         reg.write_reg8(&Reg8::A, 0b10011001);
         let i = Inst::Rrca;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b11001100, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2142,9 +2151,9 @@ mod tests {
         reg.write_reg8(&Reg8::A, 0b10011000);
         reg.set_f(FlagReg::C);
         let i = Inst::Rra;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b11001100, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2170,9 +2179,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::A, 0b10000000);
         let i = Inst::Rlc(Arg8::Reg(Reg8::A));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b00000001, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2188,9 +2197,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0b10000000);
         let i = Inst::Rl(Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b00000000, mem.read_byte(0x100));
         assert_eq!(true, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2206,9 +2215,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0b00000000);
         let i = Inst::Rl(Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b00000001, mem.read_byte(0x100));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2223,9 +2232,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::B, 0b00000001);
         let i = Inst::Rrc(Arg8::Reg(Reg8::B));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b10000000, reg.read_reg8(&Reg8::B));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2241,9 +2250,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0b00000001);
         let i = Inst::Rr(Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b00000000, mem.read_byte(0x100));
         assert_eq!(true, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2259,9 +2268,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0b00000000);
         let i = Inst::Rr(Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b10000000, mem.read_byte(0x100));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2276,9 +2285,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::C, 0b10011001);
         let i = Inst::Sla(Arg8::Reg(Reg8::C));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b00110010, reg.read_reg8(&Reg8::C));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2294,9 +2303,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0b10100101);
         let i = Inst::Swap(Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b01011010, mem.read_byte(0x100));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2312,9 +2321,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0b10011001);
         let i = Inst::Sra(Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b11001100, mem.read_byte(0x100));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2329,9 +2338,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::D, 0b10011001);
         let i = Inst::Srl(Arg8::Reg(Reg8::D));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b01001100, reg.read_reg8(&Reg8::D));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2349,9 +2358,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::A, 0b00100000);
         let i = Inst::Bit(5, Arg8::Reg(Reg8::A));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b00100000, reg.read_reg8(&Reg8::A));
         assert_eq!(false, reg.test_f(FlagReg::Z));
         assert_eq!(false, reg.test_f(FlagReg::N));
@@ -2372,9 +2381,9 @@ mod tests {
         reg.write_reg16(&Reg16::HL, 0x100);
         mem.write_byte(0x100, 0x00);
         let i = Inst::Set(3, Arg8::IndReg(Reg16::HL));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b00001000, mem.read_byte(0x100));
     }
     #[test]
@@ -2385,9 +2394,9 @@ mod tests {
 
         reg.write_reg8(&Reg8::B, 0xff);
         let i = Inst::Res(2, Arg8::Reg(Reg8::B));
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0b11111011, reg.read_reg8(&Reg8::B));
     }
     //
@@ -2401,9 +2410,9 @@ mod tests {
 
         reg.set_f(FlagReg::C);
         let i = Inst::Ccf;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(false, reg.test_f(FlagReg::C));
@@ -2418,9 +2427,9 @@ mod tests {
         let mut ime = false;
 
         let i = Inst::Scf;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(false, reg.test_f(FlagReg::N));
         assert_eq!(false, reg.test_f(FlagReg::H));
         assert_eq!(true, reg.test_f(FlagReg::C));
@@ -2432,9 +2441,33 @@ mod tests {
         let mut ime = false;
 
         let i = Inst::Halt;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(0, m);
-        assert_eq!(true, h);
+        assert_eq!(
+            Flags {
+                halt: true,
+                stop: false
+            },
+            fs
+        );
+        assert_eq!(false, ime);
+    }
+    #[test]
+    fn stop() {
+        let mut reg = Registers::new();
+        let mut mem = TestMemory::new();
+        let mut ime = false;
+
+        let i = Inst::Stop;
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        assert_eq!(0, m);
+        assert_eq!(
+            Flags {
+                halt: false,
+                stop: true
+            },
+            fs
+        );
         assert_eq!(false, ime);
     }
     #[test]
@@ -2444,9 +2477,9 @@ mod tests {
         let mut ime = true;
 
         let i = Inst::Di;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(false, ime);
     }
     #[test]
@@ -2456,9 +2489,9 @@ mod tests {
         let mut ime = false;
 
         let i = Inst::Ei;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(true, ime);
     }
     //
@@ -2471,9 +2504,9 @@ mod tests {
         let mut ime = false;
 
         let i = Inst::Jp(0x200);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x200, reg.read_reg16(&Reg16::PC));
     }
     #[test]
@@ -2484,9 +2517,9 @@ mod tests {
 
         reg.write_reg16(&Reg16::HL, 0x200);
         let i = Inst::JpHL;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(1, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x200, reg.read_reg16(&Reg16::PC));
     }
     #[test]
@@ -2498,16 +2531,16 @@ mod tests {
         reg.write_reg16(&Reg16::PC, 0x0);
 
         let i = Inst::Jpf(JpFlag::Z, 0x200);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x0, reg.read_reg16(&Reg16::PC));
 
         reg.set_f(FlagReg::Z);
         let i = Inst::Jpf(JpFlag::Z, 0x200);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x200, reg.read_reg16(&Reg16::PC));
     }
     #[test]
@@ -2518,9 +2551,9 @@ mod tests {
 
         reg.write_reg16(&Reg16::PC, 0x200);
         let i = Inst::Jr(-1);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x1ff, reg.read_reg16(&Reg16::PC));
     }
     #[test]
@@ -2532,16 +2565,16 @@ mod tests {
         reg.write_reg16(&Reg16::PC, 0x200);
         reg.set_f(FlagReg::C);
         let i = Inst::Jrf(JpFlag::Nc, -1);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x200, reg.read_reg16(&Reg16::PC));
 
         reg.clear_f(FlagReg::C);
         let i = Inst::Jrf(JpFlag::Nc, -1);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x1ff, reg.read_reg16(&Reg16::PC));
     }
     #[test]
@@ -2553,9 +2586,9 @@ mod tests {
         reg.write_reg16(&Reg16::PC, 0x200);
         reg.write_reg16(&Reg16::SP, 0x1000);
         let i = Inst::Call(0x100);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(6, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
         assert_eq!(0xffe, reg.read_reg16(&Reg16::SP));
         assert_eq!(0x200, mem.read_word(0xffe));
@@ -2569,17 +2602,17 @@ mod tests {
         reg.write_reg16(&Reg16::PC, 0x200);
         reg.write_reg16(&Reg16::SP, 0x1000);
         let i = Inst::Callf(JpFlag::C, 0x100);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(3, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x200, reg.read_reg16(&Reg16::PC));
         assert_eq!(0x1000, reg.read_reg16(&Reg16::SP));
 
         reg.set_f(FlagReg::C);
         let i = Inst::Callf(JpFlag::C, 0x100);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(6, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
         assert_eq!(0xffe, reg.read_reg16(&Reg16::SP));
         assert_eq!(0x200, mem.read_word(0xffe));
@@ -2593,9 +2626,9 @@ mod tests {
         reg.write_reg16(&Reg16::SP, 0x1000);
         mem.write_word(0x1000, 0x100);
         let i = Inst::Ret;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
         assert_eq!(0x1002, reg.read_reg16(&Reg16::SP));
     }
@@ -2610,17 +2643,17 @@ mod tests {
         mem.write_word(0x1000, 0x100);
         reg.set_f(FlagReg::C);
         let i = Inst::Retf(JpFlag::Nc);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(2, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x200, reg.read_reg16(&Reg16::PC));
         assert_eq!(0x1000, reg.read_reg16(&Reg16::SP));
 
         reg.clear_f(FlagReg::C);
         let i = Inst::Retf(JpFlag::Nc);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(5, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
         assert_eq!(0x1002, reg.read_reg16(&Reg16::SP));
     }
@@ -2633,9 +2666,9 @@ mod tests {
         reg.write_reg16(&Reg16::SP, 0x1000);
         mem.write_word(0x1000, 0x100);
         let i = Inst::Reti;
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x100, reg.read_reg16(&Reg16::PC));
         assert_eq!(0x1002, reg.read_reg16(&Reg16::SP));
         assert_eq!(true, ime);
@@ -2649,9 +2682,9 @@ mod tests {
         reg.write_reg16(&Reg16::PC, 0x200);
         reg.write_reg16(&Reg16::SP, 0x1000);
         let i = Inst::Rst(0x38);
-        let (m, h) = reg.execute(i, &mut mem, &mut ime).unwrap();
+        let (m, fs) = reg.execute(i, &mut mem, &mut ime).unwrap();
         assert_eq!(4, m);
-        assert_eq!(false, h);
+        assert_eq!(FLAGS_FS, fs);
         assert_eq!(0x38, reg.read_reg16(&Reg16::PC));
         assert_eq!(0xffe, reg.read_reg16(&Reg16::SP));
         assert_eq!(0x200, mem.read_word(0xffe));

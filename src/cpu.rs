@@ -8,6 +8,7 @@ use inst::{FlagReg, Inst, Reg16, Reg8};
 use std::fmt;
 
 type M = usize;
+
 pub struct Cpu {
     clock_m: M,
     // t = 4m
@@ -16,7 +17,8 @@ pub struct Cpu {
     m: M,
     // t = 4m
     ime: bool,
-    halt: bool,
+    flags: Flags,
+    //halt: bool,
 }
 
 impl Cpu {
@@ -26,18 +28,22 @@ impl Cpu {
             reg: Registers::new(),
             m: 0,
             ime: false,
-            halt: false,
+            //halt: false,
+            flags: Flags {
+                halt: false,
+                stop: false,
+            },
         }
     }
     pub fn run(&mut self, memory: &mut impl MemoryIF) -> Result<u16, String> {
         self.clock_m += 1;
 
-        if (self.clock_m >= self.m) || self.halt {
+        if (self.clock_m >= self.m) || self.flags.halt || self.flags.stop {
             self.clock_m = 0;
-            if !self.halt {
+            if !self.flags.halt && !self.flags.stop {
                 let (inst, addvance) = decode::decode(self.reg.pc, memory)?;
                 self.reg.pc += addvance;
-                (self.m, self.halt) = self.reg.execute(inst, memory, &mut self.ime)?;
+                (self.m, self.flags) = self.reg.execute(inst, memory, &mut self.ime)?;
             }
 
             // Interrupts
@@ -45,7 +51,7 @@ impl Cpu {
             let i_enable = memory.read_byte(IE);
             let masked = i_flag & i_enable;
             if masked != 0 {
-                self.halt = false;
+                self.flags.halt = false;
                 if self.ime {
                     self.ime = false;
                     self.m += 5;
@@ -86,8 +92,8 @@ impl fmt::Display for Cpu {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "clock_m: {}, m: {}, ime: {}, halt: {}\nreg:\n{}",
-            self.clock_m, self.m, self.ime, self.halt, self.reg
+            "clock_m: {}, m: {}, ime: {}, halt: {}, stop: {}\nreg:\n{}",
+            self.clock_m, self.m, self.ime, self.flags.halt, self.flags.stop, self.reg
         )
     }
 }
@@ -255,4 +261,10 @@ fn b2n(b: bool) -> &'static str {
     } else {
         "0"
     }
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Flags {
+    halt: bool,
+    stop: bool,
 }
