@@ -1,5 +1,5 @@
 use cpu::Cpu;
-use io::{GbKey, GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
+use io::{EmuControl, GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
 use mmu::MMU;
 use ppu::Ppu;
 use std::env;
@@ -47,18 +47,21 @@ fn main() {
     let mut f_step = false; // step execution
 
     loop {
+        let mut key_pressed = false;
         loop {
-            match io.get_key() {
-                Some(GbKey::Quit) => return,
-                Some(GbKey::Run) => {
+            let (emu_control, _pressed) = io.get_key(&mut mmu);
+            key_pressed = _pressed;
+            match emu_control {
+                Some(EmuControl::Quit) => return,
+                Some(EmuControl::Run) => {
                     f_step = false;
                     break;
                 }
-                Some(GbKey::Step) => {
+                Some(EmuControl::Step) => {
                     f_step = true;
                     break;
                 }
-                Some(GbKey::NextStep) => break,
+                Some(EmuControl::NextStep) => break,
                 _ => (),
             }
             if !f_step {
@@ -66,7 +69,7 @@ fn main() {
             }
         }
 
-        let pc = cpu.run(&mut mmu).unwrap();
+        let pc = cpu.run(&mut mmu, key_pressed).unwrap();
         ppu.run(&mut mmu, &mut io).unwrap();
         timer.run(&mut mmu).unwrap();
 

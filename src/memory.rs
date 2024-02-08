@@ -1,4 +1,6 @@
 //// I/O Rregisters
+// Joypad
+pub const JOYP: u16 = 0xff00;
 // Timer and Divider
 pub const DIV: u16 = 0xff04;
 pub const TIMA: u16 = 0xff05;

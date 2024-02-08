@@ -1,3 +1,4 @@
+use crate::memory::{MemoryIF, IF, JOYP};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -20,19 +21,26 @@ pub enum GfxColor {
     DG,
     B,
 }
-pub enum GbKey {
+pub enum EmuControl {
     Quit,
     Run,
     Step,
     NextStep,
-    //A,
-    //B,
-    //Right,
-    //Left,
-    //Up,
-    //Down,
-    //Start,
-    //Select,
+}
+#[derive(Debug)]
+enum Joypad {
+    A,
+    B,
+    Right,
+    Left,
+    Up,
+    Down,
+    Start,
+    Select,
+}
+pub enum GbKey {
+    Emu(EmuControl),
+    Game(Joypad),
 }
 
 pub struct Io {
@@ -105,22 +113,79 @@ impl Io {
         }
         self.canvas.present();
     }
-    pub fn get_key(&mut self) -> Option<GbKey> {
+    pub fn get_key(&mut self, memory: &mut impl MemoryIF) -> (Option<EmuControl>, bool) {
+        let mut joypads = Vec::new();
         for event in self.event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. } => return Some(GbKey::Quit),
+            let key = match event {
+                Event::Quit { .. } => Some(GbKey::Emu(EmuControl::Quit)),
                 Event::KeyDown {
                     keycode: Some(key_code),
                     ..
                 } => match key_code {
-                    Keycode::F5 => return Some(GbKey::Run),
-                    Keycode::F7 => return Some(GbKey::Step),
-                    Keycode::F10 => return Some(GbKey::NextStep),
-                    _ => (),
+                    Keycode::F5 => Some(GbKey::Emu(EmuControl::Run)),
+                    Keycode::F7 => Some(GbKey::Emu(EmuControl::Step)),
+                    Keycode::F10 => Some(GbKey::Emu(EmuControl::NextStep)),
+                    Keycode::Right => Some(GbKey::Game(Joypad::Right)),
+                    Keycode::Left => Some(GbKey::Game(Joypad::Left)),
+                    Keycode::Up => Some(GbKey::Game(Joypad::Up)),
+                    Keycode::Down => Some(GbKey::Game(Joypad::Down)),
+                    Keycode::S => Some(GbKey::Game(Joypad::A)),
+                    Keycode::A => Some(GbKey::Game(Joypad::B)),
+                    Keycode::Return => Some(GbKey::Game(Joypad::Start)),
+                    Keycode::RShift => Some(GbKey::Game(Joypad::Select)),
+                    _ => None,
+                },
+                _ => None,
+            };
+            match key {
+                Some(gb_key) => match gb_key {
+                    GbKey::Emu(emu_control) => return (Some(emu_control), false),
+                    GbKey::Game(joypad) => {
+                        joypads.push(joypad);
+                    }
                 },
                 _ => (),
             }
         }
-        None
+        let pressed = set_joypad_input(memory, &joypads);
+        (None, pressed)
     }
+}
+
+fn set_joypad_input(memory: &mut impl MemoryIF, joypads: &[Joypad]) -> bool {
+    // joypad input
+    let joyp = memory.read_byte(JOYP);
+    let select_buttons = joyp & 0x20 == 0x00;
+    let select_dpad = joyp & 0x10 == 0x00;
+    let mut joyp_out = (joyp & 0x30) + 0x0f;
+    for joypad in joypads {
+        if select_dpad {
+            match joypad {
+                Joypad::Right => joyp_out &= !0x01,
+                Joypad::Left => joyp_out &= !0x02,
+                Joypad::Up => joyp_out &= !0x04,
+                Joypad::Down => joyp_out &= !0x08,
+                _ => (),
+            }
+        } else if select_buttons {
+            match joypad {
+                Joypad::A => joyp_out &= !0x01,
+                Joypad::B => joyp_out &= !0x02,
+                Joypad::Select => joyp_out &= !0x04,
+                Joypad::Start => joyp_out &= !0x08,
+                _ => (),
+            }
+        }
+    }
+    // joypad interrupt
+    let pressed = if joyp_out & 0x0f != 0x0f {
+        let i_flag = memory.read_byte(IF);
+        memory.write_byte(IF, i_flag | 0x10);
+        true
+    } else {
+        false
+    };
+
+    memory.write_byte(JOYP, joyp_out);
+    pressed
 }

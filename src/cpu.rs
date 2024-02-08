@@ -35,7 +35,7 @@ impl Cpu {
             },
         }
     }
-    pub fn run(&mut self, memory: &mut impl MemoryIF) -> Result<u16, String> {
+    pub fn run(&mut self, memory: &mut impl MemoryIF, key_pressed: bool) -> Result<u16, String> {
         self.clock_m += 1;
 
         if (self.clock_m >= self.m) || self.flags.halt || self.flags.stop {
@@ -82,6 +82,10 @@ impl Cpu {
                         return Err(format!("Cpu::run: invalid if or ie"));
                     }
                 }
+            }
+
+            if self.flags.stop && key_pressed {
+                self.flags.stop = false;
             }
         }
         Ok(self.reg.pc)
