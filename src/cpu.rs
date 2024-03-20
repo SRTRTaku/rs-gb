@@ -44,6 +44,13 @@ impl Cpu {
                 let (inst, addvance) = decode::decode(self.reg.pc, memory)?;
                 self.reg.pc += addvance;
                 (self.m, self.flags) = self.reg.execute(inst, memory, &mut self.ime)?;
+                //////////
+                // for cpu_instrs
+                // 0xc2fe ld a, 01
+                // 0xc300 ld (ff00+4d) a
+                // 0xc300 stop
+                self.flags.stop = false;
+                //////////
             }
 
             // Interrupts
