@@ -1,5 +1,5 @@
 use crate::io::{GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
-use crate::memory::{MemoryIF, BGP, IF, LCDC, LY, LYC, SCX, SCY, STAT};
+use crate::memory::{MemoryIF, BGP, IF, LCDC, LY, LYC, SCX, SCY, STAT, WX, WY};
 
 pub struct Ppu {
     mode: Mode,
@@ -102,7 +102,33 @@ fn stat_int(stat: u8) -> bool {
 }
 
 fn write_a_scanline(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
-    //write BG
+    let lcdc = memory.read_byte(LCDC);
+    if lcdc & 0x80 == 0x80 {
+        // LCD  PPU enable: ON
+        if lcdc & 0x01 == 0x01 {
+            // BG & Window enable priority: ON
+            write_bg(ly, memory, io);
+            if lcdc & 0x20 == 0x20 {
+                // Window enable: ON
+                write_window(ly, memory, io);
+            }
+        } else {
+            // BG & Window enable priority: OFF
+            write_blank(ly, io); // both background and window bcome blank (white)
+        }
+        // write_obj();
+    } else {
+        // LCD  PPU enable: OFF
+        write_blank(ly, io); // displays as a white shiter than color #0
+    }
+}
+fn write_blank(ly: usize, io: &mut Io) {
+    for lx in 0..GFX_SIZE_X {
+        io.gfx[ly * GFX_SIZE_X + lx] = GfxColor::W;
+    }
+}
+
+fn write_bg(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
     let tile_map_area_addr = if memory.read_byte(LCDC) & 0x08 == 0x08 {
         0x9c00
     } else {
@@ -114,6 +140,54 @@ fn write_a_scanline(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
     for lx in 0..GFX_SIZE_X {
         let y = (scy + ly) % 256;
         let x = (scx + lx) % 256;
+
+        // get tile map address
+        let y_tile = y / 8;
+        let x_tile = x / 8;
+        let tile_map_addr = tile_map_area_addr + (y_tile * 32 + x_tile) as u16;
+        // get tile ID
+        let tile_id = memory.read_byte(tile_map_addr) as u16;
+        // get tile data address
+        let tile_data_addr = if memory.read_byte(LCDC) & 0x10 == 0x10 {
+            0x8000 + tile_id * 16
+        } else {
+            if tile_id < 128 {
+                0x9000 + tile_id * 16
+            } else {
+                0x8800 + (tile_id - 128) * 16
+            }
+        };
+        // get color ID
+        let j = (y % 8) as u16;
+        let i = (x % 8) as u16;
+        let color_id = get_a_color_id(i, j, tile_data_addr, memory);
+
+        // set color for gfx array
+        let palette_data = memory.read_byte(BGP);
+        io.gfx[ly * GFX_SIZE_X + lx] = id2color(palette_data, color_id);
+    }
+}
+
+fn write_window(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
+    let tile_map_area_addr = if memory.read_byte(LCDC) & 0x40 == 0x40 {
+        0x9c00
+    } else {
+        0x9800
+    };
+    let wy = memory.read_byte(WY) as usize;
+    let wx = memory.read_byte(WX) as usize;
+
+    if ly < wy {
+        return;
+    }
+    let y = ly - wy;
+
+    for lx in 0..GFX_SIZE_X {
+        if lx + 7 < wx {
+            // lx < wx - 7
+            continue;
+        }
+        let x = lx + 7 - wx; // x = lx - (wx - 7)
 
         // get tile map address
         let y_tile = y / 8;

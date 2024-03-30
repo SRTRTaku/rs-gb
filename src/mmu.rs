@@ -21,6 +21,7 @@ pub struct MMU {
     vram: [u8; 0x2000],                // Graphics RAM 8k byte
     eram: [u8; 0x2000 * RAM_BANK_MAX], // Cargridge (External) RAM 8k byte
     wram: [u8; 0x2000],                // Working RAM 8k byte
+    oam: [u8; 0x00a0],                 // Object Attribute Memory
     ioreg: [u8; 0x0080],               // I/O Registers
     zram: [u8; 0x0080],                // Zero-page Ram 128 byte
 }
@@ -39,6 +40,7 @@ impl MMU {
             vram: [0; 0x2000],
             eram: [0; 0x2000 * RAM_BANK_MAX],
             wram: [0; 0x2000],
+            oam: [0; 0x00a0],
             ioreg: [0; 0x0080],
             zram: [0; 0x0080],
         }
@@ -147,8 +149,11 @@ impl MemoryIF for MMU {
                 let index = (addr - 0xe000) as usize;
                 self.wram[index]
             }
-            // Fraphics: sprite information
-            0xfe00..=0xfe9f => todo!(),
+            // Graphics: sprite information
+            0xfe00..=0xfe9f => {
+                let index = (addr - 0x00fe) as usize;
+                self.oam[index]
+            }
             // not usable
             0xfea0..=0xfeff => panic!("not usable"),
             // I/O Register
@@ -219,8 +224,11 @@ impl MemoryIF for MMU {
                 // self.wram[index]
                 panic!("working ram (shadow)");
             }
-            // Fraphics: sprite information
-            0xfe00..=0xfe9f => todo!(),
+            // Graphics: sprite information
+            0xfe00..=0xfe9f => {
+                let index = (addr - 0xfe00) as usize;
+                self.oam[index] = val;
+            }
             // not usable
             0xfea0..=0xfeff => panic!("not usable"),
             // I/O Register

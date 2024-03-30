@@ -14,6 +14,8 @@ pub const SCX: u16 = 0xff43;
 pub const LY: u16 = 0xff44;
 pub const LYC: u16 = 0xff45;
 pub const BGP: u16 = 0xff47;
+pub const WY: u16 = 0xff4a;
+pub const WX: u16 = 0xff4b;
 //// Interrupt
 pub const IF: u16 = 0xff0f; // Interrupt flag
 pub const IE: u16 = 0xffff; // Interrupt enable
