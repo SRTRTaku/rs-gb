@@ -1,6 +1,6 @@
 use cpu::Cpu;
-use io::{EmuControl, GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
-use mmu::MMU;
+use io::{EmuControl, Io};
+use mmu::Mmu;
 use ppu::Ppu;
 use std::env;
 use timer::Timer;
@@ -19,7 +19,7 @@ fn main() {
         return;
     }
 
-    let mut mmu = MMU::new();
+    let mut mmu = Mmu::new();
     if let Err(e) = mmu.load(&args[1]) {
         println!("error {}", e);
         return;
@@ -47,7 +47,7 @@ fn main() {
     let mut f_step = false; // step execution
 
     loop {
-        let mut key_pressed = false;
+        let mut key_pressed;
         loop {
             let (emu_control, _pressed) = io.get_key(&mut mmu);
             key_pressed = _pressed;

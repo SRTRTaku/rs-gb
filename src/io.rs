@@ -2,7 +2,7 @@ use crate::memory::{MemoryIF, IF, JOYP};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
-use sdl2::rect::{Point, Rect};
+use sdl2::rect::Rect;
 use sdl2::render::WindowCanvas;
 use sdl2::EventPump;
 
@@ -28,7 +28,7 @@ pub enum EmuControl {
     NextStep,
 }
 #[derive(Debug)]
-enum Joypad {
+pub enum Joypad {
     A,
     B,
     Right,
@@ -95,24 +95,6 @@ impl Io {
     pub fn present(&mut self) {
         self.canvas.present();
     }
-    pub fn draw_graphics(&mut self) {
-        for y in 0..GFX_SIZE_Y {
-            for x in 0..GFX_SIZE_X {
-                let _x = (x * PIXEL_SIZE as usize) as i32;
-                let _y = (y * PIXEL_SIZE as usize) as i32;
-                match self.gfx[y * GFX_SIZE_X + x] {
-                    GfxColor::W => self.canvas.set_draw_color(WHITE),
-                    GfxColor::LG => self.canvas.set_draw_color(LIGHT_GRAY),
-                    GfxColor::DG => self.canvas.set_draw_color(DARK_GRAY),
-                    GfxColor::B => self.canvas.set_draw_color(BLACK),
-                }
-                self.canvas
-                    .fill_rect(Rect::new(_x, _y, PIXEL_SIZE, PIXEL_SIZE))
-                    .unwrap();
-            }
-        }
-        self.canvas.present();
-    }
     pub fn get_key(&mut self, memory: &mut impl MemoryIF) -> (Option<EmuControl>, bool) {
         let mut joypads = Vec::new();
         for event in self.event_pump.poll_iter() {
@@ -137,14 +119,13 @@ impl Io {
                 },
                 _ => None,
             };
-            match key {
-                Some(gb_key) => match gb_key {
+            if let Some(gb_key) = key {
+                match gb_key {
                     GbKey::Emu(emu_control) => return (Some(emu_control), false),
                     GbKey::Game(joypad) => {
                         joypads.push(joypad);
                     }
-                },
-                _ => (),
+                }
             }
         }
         let pressed = set_joypad_input(memory, &joypads);

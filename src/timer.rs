@@ -25,7 +25,7 @@ impl Timer {
             0x01 => 4,
             0x02 => 16,
             0x03 => 64,
-            _ => return Err(format!("Timer::run: invalid tac value")),
+            _ => return Err("Timer::run: invalid tac value".to_string()),
         };
         if tac & 0x04 != 0 {
             self.clock_tima_m += 1;

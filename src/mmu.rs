@@ -9,14 +9,12 @@ const RAM_BANK_BIT_MAX: usize = 3;
 const ROM_BANK_MAX: usize = 1 << ROM_BANK_BIT_MAX;
 const RAM_BANK_MAX: usize = 1 << RAM_BANK_BIT_MAX;
 
-pub struct MMU {
-    inbios: bool,
+pub struct Mmu {
     ram_enable: bool,
     rom_bank_bit: usize,
     ram_bank_bit: Option<usize>,
     rom_bank: usize,
     ram_bank: usize,
-    bios: [u8; 0x0100],                // GameBoy BIOS code 256 byte
     rom: [u8; 0x4000 * ROM_BANK_MAX],  // Cartridge ROM 32k byte
     vram: [u8; 0x2000],                // Graphics RAM 8k byte
     eram: [u8; 0x2000 * RAM_BANK_MAX], // Cargridge (External) RAM 8k byte
@@ -26,16 +24,14 @@ pub struct MMU {
     zram: [u8; 0x0080],                // Zero-page Ram 128 byte
 }
 
-impl MMU {
-    pub fn new() -> MMU {
-        MMU {
-            inbios: true,
+impl Mmu {
+    pub fn new() -> Mmu {
+        Mmu {
             ram_enable: false,
             rom_bank_bit: ROM_BANK_BIT_MAX,
             ram_bank_bit: Some(RAM_BANK_BIT_MAX),
             rom_bank: 1,
             ram_bank: 0,
-            bios: [0; 0x0100],
             rom: [0; 0x4000 * ROM_BANK_MAX],
             vram: [0; 0x2000],
             eram: [0; 0x2000 * RAM_BANK_MAX],
@@ -53,10 +49,6 @@ impl MMU {
             self.rom[i] = byte;
         }
         Ok(())
-    }
-
-    fn out_bios(&mut self) {
-        self.inbios = false;
     }
 
     pub fn dump(&self, addr: u16) {
@@ -104,7 +96,7 @@ impl MMU {
     }
 }
 
-impl MemoryIF for MMU {
+impl MemoryIF for Mmu {
     fn read_byte(&self, addr: u16) -> u8 {
         match addr {
             // BIOS / ROM0
@@ -177,7 +169,7 @@ impl MemoryIF for MMU {
             // RAM Enable
             0x0000..=0x1fff => {
                 if val & 0x0f == 0x0a {
-                    if self.ram_bank_bit == None {
+                    if self.ram_bank_bit.is_none() {
                         panic!("write_byte: ram_bank_num is 0");
                     }
                     self.ram_enable = true;

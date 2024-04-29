@@ -86,7 +86,7 @@ impl Cpu {
                         memory.write_byte(IF, i_flag & !0x10);
                         self.reg.write_reg16(&Reg16::PC, 0x60);
                     } else {
-                        return Err(format!("Cpu::run: invalid if or ie"));
+                        return Err("Cpu::run: invalid if or ie".to_string());
                     }
                 }
             }
@@ -226,9 +226,9 @@ impl Registers {
 
 impl fmt::Display for Registers {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "AF: {:#04x} {:02x} ({:#010b} {:08b})\n",
+            "AF: {:#04x} {:02x} ({:#010b} {:08b})",
             self.a, self.f, self.a, self.f
         )?;
         write!(f, " (")?;
@@ -236,24 +236,24 @@ impl fmt::Display for Registers {
         write!(f, "N: {}, ", b2n(self.test_f(FlagReg::N)))?;
         write!(f, "H: {}, ", b2n(self.test_f(FlagReg::H)))?;
         write!(f, "C: {}", b2n(self.test_f(FlagReg::C)))?;
-        write!(f, ")\n")?;
-        write!(
+        writeln!(f, ")")?;
+        writeln!(
             f,
-            "BC: {:#04x} {:02x} ({:#010b} {:08b})\n",
+            "BC: {:#04x} {:02x} ({:#010b} {:08b})",
             self.b, self.c, self.b, self.c
         )?;
-        write!(
+        writeln!(
             f,
-            "DE: {:#04x} {:02x} ({:#010b} {:08b})\n",
+            "DE: {:#04x} {:02x} ({:#010b} {:08b})",
             self.d, self.e, self.d, self.e
         )?;
-        write!(
+        writeln!(
             f,
-            "HL: {:#04x} {:02x} ({:#010b} {:08b})\n",
+            "HL: {:#04x} {:02x} ({:#010b} {:08b})",
             self.h, self.l, self.h, self.l
         )?;
         write!(f, "PC: {:#04x}, ", self.pc)?;
-        write!(f, "SP: {:#04x}\n", self.sp)
+        writeln!(f, "SP: {:#04x}", self.sp)
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::io::{GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
+use crate::io::{GfxColor, Io, GFX_SIZE_X};
 use crate::memory::{MemoryIF, BGP, IF, LCDC, LY, LYC, SCX, SCY, STAT, WX, WY};
 
 pub struct Ppu {
@@ -150,12 +150,10 @@ fn write_bg(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
         // get tile data address
         let tile_data_addr = if memory.read_byte(LCDC) & 0x10 == 0x10 {
             0x8000 + tile_id * 16
+        } else if tile_id < 128 {
+            0x9000 + tile_id * 16
         } else {
-            if tile_id < 128 {
-                0x9000 + tile_id * 16
-            } else {
-                0x8800 + (tile_id - 128) * 16
-            }
+            0x8800 + (tile_id - 128) * 16
         };
         // get color ID
         let j = (y % 8) as u16;
@@ -198,12 +196,10 @@ fn write_window(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
         // get tile data address
         let tile_data_addr = if memory.read_byte(LCDC) & 0x10 == 0x10 {
             0x8000 + tile_id * 16
+        } else if tile_id < 128 {
+            0x9000 + tile_id * 16
         } else {
-            if tile_id < 128 {
-                0x9000 + tile_id * 16
-            } else {
-                0x8800 + (tile_id - 128) * 16
-            }
+            0x8800 + (tile_id - 128) * 16
         };
         // get color ID
         let j = (y % 8) as u16;
