@@ -42,7 +42,6 @@ impl Ppu {
 
                     // write a scanline to the framebuffer
                     write_a_scanline(self.line, memory, io);
-                    io.draw_a_line(self.line);
                 }
             }
             // Horizontal blank
