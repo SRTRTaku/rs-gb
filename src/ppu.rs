@@ -91,6 +91,116 @@ impl Ppu {
         Ok(())
     }
 }
+#[derive(Copy, Clone)]
+struct PixelInfo {
+    bg_over_obj: bool,
+    color: GfxColor,
+}
+struct Obj {
+    line: [Option<PixelInfo>; GFX_SIZE_X],
+}
+
+struct ObjAttr {
+    y: u8,
+    x: u8,
+    tile_index: u8, // if 8 * 16, indices are tile_index & tile_index +1
+    attr: u8,
+}
+
+impl Obj {
+    fn new(ly: usize, memory: &impl MemoryIF) -> Obj {
+        let size = {
+            let lcdc = memory.read_byte(LCDC);
+            lcdc & 0x04 != 0
+        };
+        let objs = Obj::set_objs(size, memory);
+        let mut objs = Obj::filter_objs(objs, ly, size);
+        //let objs = sort_objs();
+        objs.reverse();
+
+        let mut line = [None; GFX_SIZE_X];
+        for obj in objs {
+            Obj::write_a_obj(&mut line, obj, ly, size, memory);
+        }
+        Obj { line }
+    }
+    fn set_objs(size: bool, memory: &impl MemoryIF) -> Vec<ObjAttr> {
+        let mut objs = Vec::new();
+        let base = 0xfe00;
+        for i in 0..40 {
+            let addr = base + i * 4;
+            let y = memory.read_byte(addr);
+            let x = memory.read_byte(addr + 1);
+            let tile_index = {
+                let idx = memory.read_byte(addr + 2);
+                if size {
+                    idx & 0xfe
+                } else {
+                    idx
+                }
+            };
+            let attr = memory.read_byte(addr + 3);
+            objs.push(ObjAttr {
+                y,
+                x,
+                tile_index,
+                attr,
+            });
+        }
+        objs
+    }
+    fn filter_objs(objs: Vec<ObjAttr>, ly: usize, size: bool) -> Vec<ObjAttr> {
+        let ly = ly as isize;
+        let mut filterd = Vec::new();
+        for obj in objs {
+            let y_min = obj.y as isize - 16;
+            let y_max = if size { y_min + 16 } else { y_min + 8 } - 1;
+            if ly >= y_min && ly <= y_max {
+                filterd.push(obj);
+                if filterd.len() >= 10 {
+                    break;
+                }
+            }
+        }
+        filterd
+    }
+    fn write_a_obj(
+        line: &mut [Option<PixelInfo>],
+        obj: ObjAttr,
+        ly: usize,
+        size: bool,
+        memory: &impl MemoryIF,
+    ) {
+        if ly == 100 {
+            for i in 0..GFX_SIZE_X {
+                line[i] = Some(PixelInfo {
+                    bg_over_obj: false,
+                    color: GfxColor::W,
+                });
+            }
+        }
+    }
+
+    fn write_obj_before_gb(&self, ly: usize, io: &mut Io) {
+        for lx in 0..GFX_SIZE_X {
+            if let Some(pixel_info) = self.line[lx] {
+                if pixel_info.bg_over_obj {
+                    io.gfx[ly * GFX_SIZE_X + lx] = pixel_info.color;
+                }
+            }
+        }
+    }
+    fn write_obj_after_gb(&self, ly: usize, io: &mut Io) {
+        for lx in 0..GFX_SIZE_X {
+            if let Some(pixel_info) = self.line[lx] {
+                if !pixel_info.bg_over_obj {
+                    io.gfx[ly * GFX_SIZE_X + lx] = pixel_info.color;
+                }
+            }
+        }
+    }
+}
+
 fn stat_int(stat: u8) -> bool {
     let mode = stat & 0x03;
     let eq = stat & 0x04;
@@ -104,6 +214,8 @@ fn write_a_scanline(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
     let lcdc = memory.read_byte(LCDC);
     if lcdc & 0x80 == 0x80 {
         // LCD  PPU enable: ON
+        let obj = Obj::new(ly, memory);
+        obj.write_obj_before_gb(ly, io);
         if lcdc & 0x01 == 0x01 {
             // BG & Window enable priority: ON
             write_bg(ly, memory, io);
@@ -115,7 +227,7 @@ fn write_a_scanline(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
             // BG & Window enable priority: OFF
             write_blank(ly, io); // both background and window bcome blank (white)
         }
-        // write_obj();
+        obj.write_obj_after_gb(ly, io);
     } else {
         // LCD  PPU enable: OFF
         write_blank(ly, io); // displays as a white shiter than color #0

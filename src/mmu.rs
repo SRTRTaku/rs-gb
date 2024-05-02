@@ -143,7 +143,7 @@ impl MemoryIF for Mmu {
             }
             // Graphics: sprite information
             0xfe00..=0xfe9f => {
-                let index = (addr - 0x00fe) as usize;
+                let index = (addr - 0xfe00) as usize;
                 self.oam[index]
             }
             // not usable
