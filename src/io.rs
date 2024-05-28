@@ -20,7 +20,7 @@ const PIXEL_SIZE: usize = 3;
 pub const GFX_SIZE_Y: usize = 144;
 pub const GFX_SIZE_X: usize = 160;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum GfxColor {
     W,
     LG,

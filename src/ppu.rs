@@ -1,5 +1,5 @@
 use crate::io::{GfxColor, Io, GFX_SIZE_X};
-use crate::memory::{MemoryIF, BGP, IF, LCDC, LY, LYC, SCX, SCY, STAT, WX, WY};
+use crate::memory::{MemoryIF, BGP, IF, LCDC, LY, LYC, OBP0, OBP1, SCX, SCY, STAT, WX, WY};
 
 pub struct Ppu {
     mode: Mode,
@@ -114,8 +114,8 @@ impl Obj {
             lcdc & 0x04 != 0
         };
         let objs = Obj::set_objs(size, memory);
-        let mut objs = Obj::filter_objs(objs, ly, size);
-        //let objs = sort_objs();
+        let objs = Obj::filter_objs(objs, ly, size);
+        let mut objs = Obj::sort_objs(objs);
         objs.reverse();
 
         let mut line = [None; GFX_SIZE_X];
@@ -164,6 +164,11 @@ impl Obj {
         }
         filterd
     }
+    fn sort_objs(objs: Vec<ObjAttr>) -> Vec<ObjAttr> {
+        let mut sorted = objs;
+        sorted.sort_by(|a, b| a.x.cmp(&b.x));
+        sorted
+    }
     fn write_a_obj(
         line: &mut [Option<PixelInfo>],
         obj: ObjAttr,
@@ -171,12 +176,69 @@ impl Obj {
         size: bool,
         memory: &impl MemoryIF,
     ) {
-        if ly == 100 {
-            for i in 0..GFX_SIZE_X {
-                line[i] = Some(PixelInfo {
-                    bg_over_obj: false,
-                    color: GfxColor::W,
-                });
+        let ly = ly as isize;
+        // j & tile adder
+        let y = obj.y as isize - 16;
+        let (j, tile_addr) = if size {
+            // 8 * 16
+            let dy = ly - y;
+            if obj.attr & 0x30 != 0 {
+                // Y flip: ON
+                if dy < 8 {
+                    (7 - dy, 0x8000 + (obj.tile_index as u16 + 1) * 16)
+                } else {
+                    (7 - (dy - 8), 0x8000 + obj.tile_index as u16 * 16)
+                }
+            } else {
+                // Y flip: OFF
+                if dy < 8 {
+                    (dy, 0x8000 + obj.tile_index as u16 * 16)
+                } else {
+                    (dy - 8, 0x8000 + (obj.tile_index as u16 + 1) * 16)
+                }
+            }
+        } else {
+            // 8 * 8
+            let addr = 0x8000 + obj.tile_index as u16 * 16;
+            let j = if obj.attr & 0x30 != 0 {
+                // Y flip: ON
+                7 - (ly - y)
+            } else {
+                // Y flip: OFF
+                ly - y
+            };
+            (j, addr)
+        };
+        let bg_over_obj = obj.attr & 0x80 != 0;
+        // i
+        let x = obj.x as isize - 8;
+        for i0 in 0..8 {
+            let i = if obj.attr & 0x20 != 0 {
+                // x flip
+                7 - i0
+            } else {
+                i0
+            };
+            let lx = x + i0;
+            if lx < 0 || lx > GFX_SIZE_X as isize - 1 {
+                break;
+            }
+            let lx = lx as usize;
+
+            // get color id
+            let color_id = get_a_color_id(i as u16, j as u16, tile_addr, memory);
+
+            // color id -> color
+            let palette_data = if obj.attr & 0x10 != 0 {
+                memory.read_byte(OBP1)
+            } else {
+                memory.read_byte(OBP0)
+            };
+            let color = id2color(palette_data, color_id);
+
+            // set color to line[]
+            if color != GfxColor::W {
+                line[lx] = Some(PixelInfo { bg_over_obj, color });
             }
         }
     }
@@ -323,7 +385,7 @@ fn write_window(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
     }
 }
 
-fn get_a_color_id(i: u16, j: u16, addr: u16, memory: &mut impl MemoryIF) -> u8 {
+fn get_a_color_id(i: u16, j: u16, addr: u16, memory: &impl MemoryIF) -> u8 {
     let b0 = (memory.read_byte(addr + 2 * j) >> (7 - i)) & 0x01;
     let b1 = (memory.read_byte(addr + 2 * j + 1) >> (7 - i)) & 0x01;
     2 * b1 + b0
