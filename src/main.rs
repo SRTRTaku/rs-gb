@@ -38,7 +38,6 @@ fn main() {
 
     let mut io = Io::new();
     let mut cpu = Cpu::new();
-    let mut ppu = Ppu::new();
     let mut timer = Timer::new();
 
     println!("{}", cpu);
@@ -70,7 +69,7 @@ fn main() {
         }
 
         let pc = cpu.run(&mut mmu, key_pressed).unwrap();
-        ppu.run(&mut mmu, &mut io).unwrap();
+        mmu.run_ppu(&mut io).unwrap();
         timer.run(&mut mmu).unwrap();
 
         if let Some(break_addr) = op_break_addr {

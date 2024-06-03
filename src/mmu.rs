@@ -1,4 +1,6 @@
-use crate::memory::{MemoryIF, DIV};
+use crate::memory::{MemoryIF, DIV, IF};
+use crate::Io;
+use crate::Ppu;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
@@ -16,12 +18,11 @@ pub struct Mmu {
     rom_bank: usize,
     ram_bank: usize,
     rom: [u8; 0x4000 * ROM_BANK_MAX],  // Cartridge ROM 32k byte
-    vram: [u8; 0x2000],                // Graphics RAM 8k byte
     eram: [u8; 0x2000 * RAM_BANK_MAX], // Cargridge (External) RAM 8k byte
     wram: [u8; 0x2000],                // Working RAM 8k byte
-    oam: [u8; 0x00a0],                 // Object Attribute Memory
     ioreg: [u8; 0x0080],               // I/O Registers
     zram: [u8; 0x0080],                // Zero-page Ram 128 byte
+    pub ppu: Ppu,
 }
 
 impl Mmu {
@@ -33,12 +34,11 @@ impl Mmu {
             rom_bank: 1,
             ram_bank: 0,
             rom: [0; 0x4000 * ROM_BANK_MAX],
-            vram: [0; 0x2000],
             eram: [0; 0x2000 * RAM_BANK_MAX],
             wram: [0; 0x2000],
-            oam: [0; 0x00a0],
             ioreg: [0; 0x0080],
             zram: [0; 0x0080],
+            ppu: Ppu::new(),
         }
     }
 
@@ -94,6 +94,12 @@ impl Mmu {
             println!();
         }
     }
+    pub fn run_ppu(&mut self, io: &mut Io) -> Result<(), String> {
+        let mut i_flg = self.read_byte(IF);
+        self.ppu.run(io, &mut i_flg)?;
+        self.write_byte(IF, i_flg);
+        Ok(())
+    }
 }
 
 impl MemoryIF for Mmu {
@@ -120,7 +126,7 @@ impl MemoryIF for Mmu {
             // Graphics: VRAM 8k
             0x8000..=0x9fff => {
                 let index = (addr - 0x8000) as usize;
-                self.vram[index]
+                self.ppu.read_vram(index)
             }
             // External RAM 8k
             0xa000..=0xbfff => {
@@ -144,15 +150,21 @@ impl MemoryIF for Mmu {
             // Graphics: sprite information
             0xfe00..=0xfe9f => {
                 let index = (addr - 0xfe00) as usize;
-                self.oam[index]
+                self.ppu.read_oam(index)
             }
             // not usable
             0xfea0..=0xfeff => panic!("not usable"),
             // I/O Register
-            0xff00..=0xff7f => {
-                let index = (addr - 0xff00) as usize;
-                self.ioreg[index]
-            }
+            0xff00..=0xff7f => match addr {
+                0xff40..=0xff4b => {
+                    let index = (addr - 0xff40) as usize;
+                    self.ppu.read_lcd_reg(index)
+                }
+                _ => {
+                    let index = (addr - 0xff00) as usize;
+                    self.ioreg[index]
+                }
+            },
             // Zero-page
             0xff80..=0xffff => {
                 let index = (addr - 0xff80) as usize;
@@ -198,7 +210,7 @@ impl MemoryIF for Mmu {
             // Graphics: VRAM 8k
             0x8000..=0x9fff => {
                 let index = (addr - 0x8000) as usize;
-                self.vram[index] = val;
+                self.ppu.write_vram(index, val);
             }
             // External RAM 8k
             0xa000..=0xbfff => {
@@ -219,15 +231,23 @@ impl MemoryIF for Mmu {
             // Graphics: sprite information
             0xfe00..=0xfe9f => {
                 let index = (addr - 0xfe00) as usize;
-                self.oam[index] = val;
+                self.ppu.write_oam(index, val);
             }
             // not usable
             0xfea0..=0xfeff => panic!("not usable"),
             // I/O Register
             0xff00..=0xff7f => {
-                let index = (addr - 0xff00) as usize;
                 let val = if addr == DIV { 0 } else { val };
-                self.ioreg[index] = val;
+                match addr {
+                    0xff40..=0xff4b => {
+                        let index = (addr - 0xff40) as usize;
+                        self.ppu.write_lcd_reg(index, val);
+                    }
+                    _ => {
+                        let index = (addr - 0xff00) as usize;
+                        self.ioreg[index] = val;
+                    }
+                }
             }
             // Zero-page
             0xff80..=0xffff => {

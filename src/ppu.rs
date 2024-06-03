@@ -1,13 +1,18 @@
 use crate::io::{GfxColor, Io, GFX_SIZE_X};
-use crate::memory::{MemoryIF, BGP, IF, LCDC, LY, LYC, OBP0, OBP1, SCX, SCY, STAT, WX, WY};
+use crate::memory::{MemoryIF, BGP, LCDC, LY, LYC, OBP0, OBP1, SCX, SCY, STAT, WX, WY};
+
+const VRAM: u16 = 0x8000;
 
 pub struct Ppu {
     mode: Mode,
     clock_m: usize,
     line: usize,
+    vram: [u8; 0x2000], // Graphics RAM 8k byte
+    oam: [u8; 0x00a0],  // Object Attribute Memory
+    lcd_regs: [u8; 0xc],
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 enum Mode {
     Mode0,
     Mode1,
@@ -21,11 +26,46 @@ impl Ppu {
             mode: Mode::Mode2,
             clock_m: 0,
             line: 0,
+            vram: [0; 0x2000],
+            oam: [0; 0x00a0],
+            lcd_regs: [0; 0xc],
         }
     }
-    pub fn run(&mut self, memory: &mut impl MemoryIF, io: &mut Io) -> Result<(), String> {
+    pub fn read_vram(&self, index: usize) -> u8 {
+        if self.mode == Mode::Mode3 {
+            0xff
+        } else {
+            self.vram[index]
+        }
+    }
+    pub fn write_vram(&mut self, index: usize, val: u8) {
+        if true
+        /*self.mode != Mode::Mode3*/
+        {
+            self.vram[index] = val;
+        }
+    }
+    pub fn read_oam(&self, index: usize) -> u8 {
+        if self.mode == Mode::Mode3 {
+            0xff
+        } else {
+            self.oam[index]
+        }
+    }
+    pub fn write_oam(&mut self, index: usize, val: u8) {
+        if self.mode != Mode::Mode3 {
+            self.oam[index] = val;
+        }
+    }
+    pub fn read_lcd_reg(&self, index: usize) -> u8 {
+        self.lcd_regs[index]
+    }
+    pub fn write_lcd_reg(&mut self, index: usize, val: u8) {
+        self.lcd_regs[index] = val;
+    }
+    pub fn run(&mut self, io: &mut Io, i_flg: &mut u8) -> Result<(), String> {
         self.clock_m += 1;
-        let stat = memory.read_byte(STAT);
+        let stat = self.lcd_regs[(STAT - LCDC) as usize];
         match self.mode {
             // OAM scan
             Mode::Mode2 => {
@@ -41,7 +81,7 @@ impl Ppu {
                     self.mode = Mode::Mode0;
 
                     // write a scanline to the framebuffer
-                    write_a_scanline(self.line, memory, io);
+                    self.write_a_scanline(io);
                 }
             }
             // Horizontal blank
@@ -54,12 +94,11 @@ impl Ppu {
                         io.present();
                         self.mode = Mode::Mode1;
                         // VBlank interrupt
-                        let i_flag = memory.read_byte(IF);
-                        memory.write_byte(IF, i_flag | 0x01);
+                        *i_flg |= 0x01
                     } else {
                         self.mode = Mode::Mode2;
                     }
-                    memory.write_byte(LY, self.line as u8);
+                    self.lcd_regs[(LY - LCDC) as usize] = self.line as u8;
                 }
             }
             // Vertical blank
@@ -71,24 +110,136 @@ impl Ppu {
                         self.mode = Mode::Mode2;
                         self.line = 0;
                     }
-                    memory.write_byte(0xff44, self.line as u8);
+                    self.lcd_regs[(LY - LCDC) as usize] = self.line as u8;
                 }
             }
         }
         // Update LCD status
         let mut stat = stat & 0xf8; // masked
-        if self.line as u8 == memory.read_byte(LYC) {
+        if self.line as u8 == self.lcd_regs[(LYC - LCDC) as usize] {
             stat |= 0x04
         }
         stat += self.mode as u8;
-        memory.write_byte(STAT, stat);
+        self.lcd_regs[(STAT - LCDC) as usize] = stat;
         // STAT interrupt
         if stat_int(stat) {
-            let i_flag = memory.read_byte(IF);
-            memory.write_byte(IF, i_flag | 0x02);
+            *i_flg |= 0x02;
         }
         //
         Ok(())
+    }
+
+    fn write_a_scanline(&self, io: &mut Io) {
+        let lcdc = self.lcd_regs[(LCDC - LCDC) as usize];
+        if lcdc & 0x80 == 0x80 {
+            // LCD  PPU enable: ON
+            //let obj = Obj::new(ly, memory);
+            //obj.write_obj_before_gb(ly, io);
+            if lcdc & 0x01 == 0x01 {
+                // BG & Window enable priority: ON
+                self.write_bg(io);
+                if lcdc & 0x20 == 0x20 {
+                    // Window enable: ON
+                    self.write_window(io);
+                }
+            } else {
+                // BG & Window enable priority: OFF
+                self.write_blank(io); // both background and window bcome blank (white)
+            }
+            //obj.write_obj_after_gb(ly, io);
+        } else {
+            // LCD  PPU enable: OFF
+            self.write_blank(io); // displays as a white shiter than color #0
+        }
+    }
+
+    fn write_blank(&self, io: &mut Io) {
+        let ly = self.line;
+        for lx in 0..GFX_SIZE_X {
+            io.gfx[ly * GFX_SIZE_X + lx] = GfxColor::W;
+        }
+    }
+
+    fn write_bg(&self, io: &mut Io) {
+        let lcdc = self.lcd_regs[(LCDC - LCDC) as usize];
+        let tile_map_area_addr = if lcdc & 0x08 == 0x08 { 0x9c00 } else { 0x9800 };
+        let scy = self.lcd_regs[(SCY - LCDC) as usize] as usize;
+        let scx = self.lcd_regs[(SCX - LCDC) as usize] as usize;
+        let ly = self.line;
+
+        for lx in 0..GFX_SIZE_X {
+            let y = (scy + ly) % 256;
+            let x = (scx + lx) % 256;
+
+            // get tile map address
+            let y_tile = y / 8;
+            let x_tile = x / 8;
+            let tile_map_addr = tile_map_area_addr + (y_tile * 32 + x_tile) as u16;
+            // get tile ID
+            let tile_id = self.vram[(tile_map_addr - VRAM) as usize] as u16;
+            // get tile data address
+            let tile_data_addr = if lcdc & 0x10 == 0x10 {
+                0x8000 + tile_id * 16
+            } else if tile_id < 128 {
+                0x9000 + tile_id * 16
+            } else {
+                0x8800 + (tile_id - 128) * 16
+            };
+            // get color ID
+            let j = (y % 8) as u16;
+            let i = (x % 8) as u16;
+            let tile_data_index = (tile_data_addr - VRAM) as usize;
+            let color_id = get_a_color_id(i, j, &self.vram[tile_data_index..tile_data_index + 16]);
+
+            // set color for gfx array
+            let palette_data = self.lcd_regs[(BGP - LCDC) as usize];
+            io.gfx[ly * GFX_SIZE_X + lx] = id2color(palette_data, color_id);
+        }
+    }
+
+    fn write_window(&self, io: &mut Io) {
+        let lcdc = self.lcd_regs[(LCDC - LCDC) as usize];
+        let tile_map_area_addr = if lcdc & 0x40 == 0x40 { 0x9c00 } else { 0x9800 };
+        let wy = self.lcd_regs[(WY - LCDC) as usize] as usize;
+        let wx = self.lcd_regs[(WX - LCDC) as usize] as usize;
+        let ly = self.line;
+
+        if ly < wy {
+            return;
+        }
+        let y = ly - wy;
+
+        for lx in 0..GFX_SIZE_X {
+            if lx + 7 < wx {
+                // lx < wx - 7
+                continue;
+            }
+            let x = lx + 7 - wx; // x = lx - (wx - 7)
+
+            // get tile map address
+            let y_tile = y / 8;
+            let x_tile = x / 8;
+            let tile_map_addr = tile_map_area_addr + (y_tile * 32 + x_tile) as u16;
+            // get tile ID
+            let tile_id = self.vram[(tile_map_addr - VRAM) as usize] as u16;
+            // get tile data address
+            let tile_data_addr = if lcdc & 0x10 == 0x10 {
+                0x8000 + tile_id * 16
+            } else if tile_id < 128 {
+                0x9000 + tile_id * 16
+            } else {
+                0x8800 + (tile_id - 128) * 16
+            };
+            // get color ID
+            let j = (y % 8) as u16;
+            let i = (x % 8) as u16;
+            let tile_data_index = (tile_data_addr - VRAM) as usize;
+            let color_id = get_a_color_id(i, j, &self.vram[tile_data_index..tile_data_index + 16]);
+
+            // set color for gfx array
+            let palette_data = self.lcd_regs[(BGP - LCDC) as usize];
+            io.gfx[ly * GFX_SIZE_X + lx] = id2color(palette_data, color_id);
+        }
     }
 }
 #[derive(Copy, Clone)]
@@ -226,7 +377,7 @@ impl Obj {
             let lx = lx as usize;
 
             // get color id
-            let color_id = get_a_color_id(i as u16, j as u16, tile_addr, memory);
+            let color_id = todo!(); //get_a_color_id(i as u16, j as u16, tile_addr, memory);
 
             // color id -> color
             let palette_data = if obj.attr & 0x10 != 0 {
@@ -271,123 +422,9 @@ fn stat_int(stat: u8) -> bool {
         || ((stat & 0x20 != 0) && (mode == 2))
         || ((stat & 0x40 != 0) && (eq != 0))
 }
-
-fn write_a_scanline(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
-    let lcdc = memory.read_byte(LCDC);
-    if lcdc & 0x80 == 0x80 {
-        // LCD  PPU enable: ON
-        let obj = Obj::new(ly, memory);
-        obj.write_obj_before_gb(ly, io);
-        if lcdc & 0x01 == 0x01 {
-            // BG & Window enable priority: ON
-            write_bg(ly, memory, io);
-            if lcdc & 0x20 == 0x20 {
-                // Window enable: ON
-                write_window(ly, memory, io);
-            }
-        } else {
-            // BG & Window enable priority: OFF
-            write_blank(ly, io); // both background and window bcome blank (white)
-        }
-        obj.write_obj_after_gb(ly, io);
-    } else {
-        // LCD  PPU enable: OFF
-        write_blank(ly, io); // displays as a white shiter than color #0
-    }
-}
-fn write_blank(ly: usize, io: &mut Io) {
-    for lx in 0..GFX_SIZE_X {
-        io.gfx[ly * GFX_SIZE_X + lx] = GfxColor::W;
-    }
-}
-
-fn write_bg(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
-    let tile_map_area_addr = if memory.read_byte(LCDC) & 0x08 == 0x08 {
-        0x9c00
-    } else {
-        0x9800
-    };
-    let scy = memory.read_byte(SCY) as usize;
-    let scx = memory.read_byte(SCX) as usize;
-
-    for lx in 0..GFX_SIZE_X {
-        let y = (scy + ly) % 256;
-        let x = (scx + lx) % 256;
-
-        // get tile map address
-        let y_tile = y / 8;
-        let x_tile = x / 8;
-        let tile_map_addr = tile_map_area_addr + (y_tile * 32 + x_tile) as u16;
-        // get tile ID
-        let tile_id = memory.read_byte(tile_map_addr) as u16;
-        // get tile data address
-        let tile_data_addr = if memory.read_byte(LCDC) & 0x10 == 0x10 {
-            0x8000 + tile_id * 16
-        } else if tile_id < 128 {
-            0x9000 + tile_id * 16
-        } else {
-            0x8800 + (tile_id - 128) * 16
-        };
-        // get color ID
-        let j = (y % 8) as u16;
-        let i = (x % 8) as u16;
-        let color_id = get_a_color_id(i, j, tile_data_addr, memory);
-
-        // set color for gfx array
-        let palette_data = memory.read_byte(BGP);
-        io.gfx[ly * GFX_SIZE_X + lx] = id2color(palette_data, color_id);
-    }
-}
-
-fn write_window(ly: usize, memory: &mut impl MemoryIF, io: &mut Io) {
-    let tile_map_area_addr = if memory.read_byte(LCDC) & 0x40 == 0x40 {
-        0x9c00
-    } else {
-        0x9800
-    };
-    let wy = memory.read_byte(WY) as usize;
-    let wx = memory.read_byte(WX) as usize;
-
-    if ly < wy {
-        return;
-    }
-    let y = ly - wy;
-
-    for lx in 0..GFX_SIZE_X {
-        if lx + 7 < wx {
-            // lx < wx - 7
-            continue;
-        }
-        let x = lx + 7 - wx; // x = lx - (wx - 7)
-
-        // get tile map address
-        let y_tile = y / 8;
-        let x_tile = x / 8;
-        let tile_map_addr = tile_map_area_addr + (y_tile * 32 + x_tile) as u16;
-        // get tile ID
-        let tile_id = memory.read_byte(tile_map_addr) as u16;
-        // get tile data address
-        let tile_data_addr = if memory.read_byte(LCDC) & 0x10 == 0x10 {
-            0x8000 + tile_id * 16
-        } else if tile_id < 128 {
-            0x9000 + tile_id * 16
-        } else {
-            0x8800 + (tile_id - 128) * 16
-        };
-        // get color ID
-        let j = (y % 8) as u16;
-        let i = (x % 8) as u16;
-        let color_id = get_a_color_id(i, j, tile_data_addr, memory);
-
-        // set color for gfx array
-        let palette_data = memory.read_byte(BGP);
-        io.gfx[ly * GFX_SIZE_X + lx] = id2color(palette_data, color_id);
-    }
-}
-
-fn get_a_color_id(i: u16, j: u16, addr: u16, memory: &impl MemoryIF) -> u8 {
-    let b0 = (memory.read_byte(addr + 2 * j) >> (7 - i)) & 0x01;
-    let b1 = (memory.read_byte(addr + 2 * j + 1) >> (7 - i)) & 0x01;
+fn get_a_color_id(i: u16, j: u16, tile_data: &[u8]) -> u8 {
+    let b0 = (tile_data[(2 * j) as usize] >> (7 - i)) & 0x01;
+    let b1 = (tile_data[(2 * j + 1) as usize] >> (7 - i)) & 0x01;
     2 * b1 + b0
 }
 
