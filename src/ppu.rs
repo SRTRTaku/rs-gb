@@ -32,29 +32,27 @@ impl Ppu {
         }
     }
     pub fn read_vram(&self, index: usize) -> u8 {
-        if self.mode == Mode::Mode3 {
-            0xff
-        } else {
-            self.vram[index]
+        match self.mode {
+            Mode::Mode3 => 0xff,   // inaccessible
+            _ => self.vram[index], // accessible
         }
     }
     pub fn write_vram(&mut self, index: usize, val: u8) {
-        if true
-        /*self.mode != Mode::Mode3*/
-        {
-            self.vram[index] = val;
+        match self.mode {
+            Mode::Mode3 => (),           // inaccessible
+            _ => self.vram[index] = val, // accessible
         }
     }
     pub fn read_oam(&self, index: usize) -> u8 {
-        if self.mode == Mode::Mode3 {
-            0xff
-        } else {
-            self.oam[index]
+        match self.mode {
+            Mode::Mode2 | Mode::Mode3 => 0xff, // inaccessible
+            _ => self.oam[index],              // accessible
         }
     }
     pub fn write_oam(&mut self, index: usize, val: u8) {
-        if self.mode != Mode::Mode3 {
-            self.oam[index] = val;
+        match self.mode {
+            Mode::Mode2 | Mode::Mode3 => (), // inaccessible
+            _ => self.oam[index] = val,      // accessible
         }
     }
     pub fn read_lcd_reg(&self, index: usize) -> u8 {
