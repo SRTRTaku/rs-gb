@@ -1,4 +1,4 @@
-use crate::io::{GfxColor, Io, GFX_SIZE_X};
+use crate::io::{GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
 use crate::memory::{MemoryIF, BGP, LCDC, LY, LYC, OBP0, OBP1, SCX, SCY, STAT, WX, WY};
 
 const VRAM: u16 = 0x8000;
@@ -7,6 +7,7 @@ pub struct Ppu {
     mode: Mode,
     clock_m: usize,
     line: usize,
+    set_blank: bool,
     vram: [u8; 0x2000], // Graphics RAM 8k byte
     oam: [u8; 0x00a0],  // Object Attribute Memory
     lcd_regs: [u8; 0xc],
@@ -22,37 +23,56 @@ enum Mode {
 
 impl Ppu {
     pub fn new() -> Ppu {
+        let mut lcd_regs = [0; 0xc];
+        lcd_regs[0] = 0x80;
         Ppu {
             mode: Mode::Mode2,
             clock_m: 0,
             line: 0,
+            set_blank: false,
             vram: [0; 0x2000],
             oam: [0; 0x00a0],
-            lcd_regs: [0; 0xc],
+            lcd_regs,
         }
     }
     pub fn read_vram(&self, index: usize) -> u8 {
-        match self.mode {
-            Mode::Mode3 => 0xff,   // inaccessible
-            _ => self.vram[index], // accessible
+        if self.is_enable() {
+            match self.mode {
+                Mode::Mode3 => 0xff,   // inaccessible
+                _ => self.vram[index], // accessible
+            }
+        } else {
+            self.vram[index] // accessible
         }
     }
     pub fn write_vram(&mut self, index: usize, val: u8) {
-        match self.mode {
-            Mode::Mode3 => (),           // inaccessible
-            _ => self.vram[index] = val, // accessible
+        if self.is_enable() {
+            match self.mode {
+                Mode::Mode3 => (),           // inaccessible
+                _ => self.vram[index] = val, // accessible
+            }
+        } else {
+            self.vram[index] = val // accessible
         }
     }
     pub fn read_oam(&self, index: usize) -> u8 {
-        match self.mode {
-            Mode::Mode2 | Mode::Mode3 => 0xff, // inaccessible
-            _ => self.oam[index],              // accessible
+        if self.is_enable() {
+            match self.mode {
+                Mode::Mode2 | Mode::Mode3 => 0xff, // inaccessible
+                _ => self.oam[index],              // accessible
+            }
+        } else {
+            self.oam[index] // accessible
         }
     }
     pub fn write_oam(&mut self, index: usize, val: u8) {
-        match self.mode {
-            Mode::Mode2 | Mode::Mode3 => (), // inaccessible
-            _ => self.oam[index] = val,      // accessible
+        if self.is_enable() {
+            match self.mode {
+                Mode::Mode2 | Mode::Mode3 => (), // inaccessible
+                _ => self.oam[index] = val,      // accessible
+            }
+        } else {
+            self.oam[index] = val // accessible
         }
     }
     pub fn read_lcd_reg(&self, index: usize) -> u8 {
@@ -60,106 +80,116 @@ impl Ppu {
     }
     pub fn write_lcd_reg(&mut self, index: usize, val: u8) {
         self.lcd_regs[index] = val;
+        if index == 0 && val & 0x80 != 0 {
+            self.set_blank = true;
+        }
+    }
+    fn is_enable(&self) -> bool {
+        self.lcd_regs[0 /*(LCDC - LCDC)*/] & 0x80 != 0x00
     }
     pub fn run(&mut self, io: &mut Io, i_flg: &mut u8) -> Result<(), String> {
-        self.clock_m += 1;
-        let stat = self.lcd_regs[(STAT - LCDC) as usize];
-        match self.mode {
-            // OAM scan
-            Mode::Mode2 => {
-                if self.clock_m >= 20 {
-                    self.clock_m = 0;
-                    self.mode = Mode::Mode3;
-                }
-            }
-            // Drawing pixels
-            Mode::Mode3 => {
-                if self.clock_m >= 43 {
-                    self.clock_m = 0;
-                    self.mode = Mode::Mode0;
-
-                    // write a scanline to the framebuffer
-                    self.write_a_scanline(io);
-                }
-            }
-            // Horizontal blank
-            Mode::Mode0 => {
-                if self.clock_m >= 51 {
-                    self.clock_m = 0;
-                    self.line += 1;
-
-                    if self.line >= 144 {
-                        io.present();
-                        self.mode = Mode::Mode1;
-                        // VBlank interrupt
-                        *i_flg |= 0x01
-                    } else {
-                        self.mode = Mode::Mode2;
+        if self.is_enable() {
+            self.clock_m += 1;
+            let stat = self.lcd_regs[(STAT - LCDC) as usize];
+            match self.mode {
+                // OAM scan
+                Mode::Mode2 => {
+                    if self.clock_m >= 20 {
+                        self.clock_m = 0;
+                        self.mode = Mode::Mode3;
                     }
-                    self.lcd_regs[(LY - LCDC) as usize] = self.line as u8;
                 }
-            }
-            // Vertical blank
-            Mode::Mode1 => {
-                if self.clock_m >= 114 {
-                    self.clock_m = 0;
-                    self.line += 1;
-                    if self.line > 153 {
-                        self.mode = Mode::Mode2;
-                        self.line = 0;
+                // Drawing pixels
+                Mode::Mode3 => {
+                    if self.clock_m >= 43 {
+                        self.clock_m = 0;
+                        self.mode = Mode::Mode0;
+
+                        // write a scanline to the framebuffer
+                        self.write_a_scanline(io);
                     }
-                    self.lcd_regs[(LY - LCDC) as usize] = self.line as u8;
+                }
+                // Horizontal blank
+                Mode::Mode0 => {
+                    if self.clock_m >= 51 {
+                        self.clock_m = 0;
+                        self.line += 1;
+
+                        if self.line >= 144 {
+                            io.present();
+                            self.mode = Mode::Mode1;
+                            // VBlank interrupt
+                            *i_flg |= 0x01
+                        } else {
+                            self.mode = Mode::Mode2;
+                        }
+                        self.lcd_regs[(LY - LCDC) as usize] = self.line as u8;
+                    }
+                }
+                // Vertical blank
+                Mode::Mode1 => {
+                    if self.clock_m >= 114 {
+                        self.clock_m = 0;
+                        self.line += 1;
+                        if self.line > 153 {
+                            self.mode = Mode::Mode2;
+                            self.line = 0;
+                        }
+                        self.lcd_regs[(LY - LCDC) as usize] = self.line as u8;
+                    }
                 }
             }
+            // Update LCD status
+            let mut stat = stat & 0xf8; // masked
+            if self.line as u8 == self.lcd_regs[(LYC - LCDC) as usize] {
+                stat |= 0x04
+            }
+            stat += self.mode as u8;
+            self.lcd_regs[(STAT - LCDC) as usize] = stat;
+            // STAT interrupt
+            if stat_int(stat) {
+                *i_flg |= 0x02;
+            }
+            //
+        } else if self.set_blank {
+            self.mode = Mode::Mode2;
+            self.clock_m = 0;
+            self.line = 0;
+            self.set_blank = false;
+
+            for ly in 0..GFX_SIZE_Y {
+                Ppu::write_blank(ly, io);
+            }
         }
-        // Update LCD status
-        let mut stat = stat & 0xf8; // masked
-        if self.line as u8 == self.lcd_regs[(LYC - LCDC) as usize] {
-            stat |= 0x04
-        }
-        stat += self.mode as u8;
-        self.lcd_regs[(STAT - LCDC) as usize] = stat;
-        // STAT interrupt
-        if stat_int(stat) {
-            *i_flg |= 0x02;
-        }
-        //
         Ok(())
     }
 
     fn write_a_scanline(&self, io: &mut Io) {
-        let lcdc = self.lcd_regs[(LCDC - LCDC) as usize];
-        if lcdc & 0x80 == 0x80 {
-            // LCD  PPU enable: ON
-            //let obj = Obj::new(ly, memory);
-            //obj.write_obj_before_gb(ly, io);
-            if lcdc & 0x01 == 0x01 {
-                // BG & Window enable priority: ON
-                self.write_bg(io);
-                if lcdc & 0x20 == 0x20 {
-                    // Window enable: ON
-                    self.write_window(io);
-                }
-            } else {
-                // BG & Window enable priority: OFF
-                self.write_blank(io); // both background and window bcome blank (white)
+        let lcdc = self.lcd_regs[0 /* LCDC - LCDC */];
+        //let obj = Obj::new(ly, memory);
+        //obj.write_obj_before_gb(ly, io);
+        if lcdc & 0x01 == 0x01 {
+            // BG & Window enable priority: ON
+            self.write_bg(io);
+            if lcdc & 0x20 == 0x20 {
+                // Window enable: ON
+                //self.write_window(io);
             }
-            //obj.write_obj_after_gb(ly, io);
         } else {
-            // LCD  PPU enable: OFF
-            self.write_blank(io); // displays as a white shiter than color #0
+            // BG & Window enable priority: OFF
+            Ppu::write_blank(self.line, io); // both background and window bcome blank (white)
         }
+        //obj.write_obj_after_gb(ly, io);
     }
 
-    fn write_blank(&self, io: &mut Io) {
-        let ly = self.line;
+    fn write_blank(ly: usize, io: &mut Io) {
         for lx in 0..GFX_SIZE_X {
             io.gfx[ly * GFX_SIZE_X + lx] = GfxColor::W;
         }
     }
 
     fn write_bg(&self, io: &mut Io) {
-        let lcdc = self.lcd_regs[(LCDC - LCDC) as usize];
+        let lcdc = self.lcd_regs[0 /* LCDC - LCDC */];
         let tile_map_area_addr = if lcdc & 0x08 == 0x08 { 0x9c00 } else { 0x9800 };
         let scy = self.lcd_regs[(SCY - LCDC) as usize] as usize;
         let scx = self.lcd_regs[(SCX - LCDC) as usize] as usize;
@@ -196,7 +226,7 @@ impl Ppu {
     }
 
     fn write_window(&self, io: &mut Io) {
-        let lcdc = self.lcd_regs[(LCDC - LCDC) as usize];
+        let lcdc = self.lcd_regs[0 /* LCDC - LCDC */];
         let tile_map_area_addr = if lcdc & 0x40 == 0x40 { 0x9c00 } else { 0x9800 };
         let wy = self.lcd_regs[(WY - LCDC) as usize] as usize;
         let wx = self.lcd_regs[(WX - LCDC) as usize] as usize;
