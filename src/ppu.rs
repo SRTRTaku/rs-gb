@@ -7,6 +7,7 @@ pub struct Ppu {
     mode: Mode,
     clock_m: usize,
     line: usize,
+    stat_int_prev: bool,
     set_blank: bool,
     vram: [u8; 0x2000], // Graphics RAM 8k byte
     oam: [u8; 0x00a0],  // Object Attribute Memory
@@ -29,6 +30,7 @@ impl Ppu {
             mode: Mode::Mode2,
             clock_m: 0,
             line: 0,
+            stat_int_prev: false,
             set_blank: false,
             vram: [0; 0x2000],
             oam: [0; 0x00a0],
@@ -147,14 +149,17 @@ impl Ppu {
             stat += self.mode as u8;
             self.lcd_regs[(STAT - LCDC) as usize] = stat;
             // STAT interrupt
-            if stat_int(stat) {
+            let stat_int = set_stat_int(stat);
+            if stat_int && !self.stat_int_prev {
                 *i_flg |= 0x02;
             }
+            self.stat_int_prev = stat_int;
             //
         } else if self.set_blank {
             self.mode = Mode::Mode2;
             self.clock_m = 0;
             self.line = 0;
+            self.stat_int_prev = false;
             self.set_blank = false;
 
             for ly in 0..GFX_SIZE_Y {
@@ -442,7 +447,7 @@ impl Obj {
     }
 }
 
-fn stat_int(stat: u8) -> bool {
+fn set_stat_int(stat: u8) -> bool {
     let mode = stat & 0x03;
     let eq = stat & 0x04;
     ((stat & 0x08 != 0) && (mode == 0))

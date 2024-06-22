@@ -83,6 +83,16 @@ impl Mmu {
             println!();
         }
 
+        println!("I/O registers:");
+        for row in (0xff00 / 16)..=(0xff80 / 16) {
+            let offset = row * 16;
+            print!("{:04x} |", offset);
+            for i in 0..16 {
+                let a = offset + i;
+                print!(" {:02x}", self.read_byte(a as u16));
+            }
+            println!();
+        }
         println!("hram:");
         for row in (0xff80 / 16)..=(0xffff / 16) {
             let offset = row * 16;
