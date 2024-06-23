@@ -377,7 +377,7 @@ impl Obj {
         let (j, tile_data_index) = if size {
             // 8 * 16
             let dy = ly - y;
-            if obj.attr & 0x30 != 0 {
+            if obj.attr & 0x40 != 0 {
                 // Y flip: ON
                 if dy < 8 {
                     (7 - dy, (obj.tile_index as u16 + 1) * 16)
@@ -395,7 +395,7 @@ impl Obj {
         } else {
             // 8 * 8
             let index = obj.tile_index as u16 * 16;
-            let j = if obj.attr & 0x30 != 0 {
+            let j = if obj.attr & 0x40 != 0 {
                 // Y flip: ON
                 7 - (ly - y)
             } else {
