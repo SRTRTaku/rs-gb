@@ -183,7 +183,10 @@ impl Ppu {
         let lcdc = self.lcd_regs[0 /* LCDC - LCDC */];
         let ly = self.line;
         let obj = Obj::new(ly, &self.vram, &self.oam, &self.lcd_regs);
-        obj.write_obj_before_gb(ly, io);
+        if lcdc & 0x02 != 0 {
+            // OBJ enable: ON
+            obj.write_obj_before_gb(ly, io);
+        }
         if lcdc & 0x01 != 0 {
             // BG & Window enable priority: ON
             self.write_bg(io);
@@ -201,7 +204,10 @@ impl Ppu {
             // BG & Window enable priority: OFF
             Ppu::write_blank(self.line, io); // both background and window bcome blank (white)
         }
-        obj.write_obj_after_gb(ly, io);
+        if lcdc & 0x02 != 0 {
+            // OBJ enable: ON
+            obj.write_obj_after_gb(ly, io);
+        }
     }
 
     fn write_blank(ly: usize, io: &mut Io) {
