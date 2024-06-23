@@ -1,5 +1,5 @@
 use crate::io::{GfxColor, Io, GFX_SIZE_X, GFX_SIZE_Y};
-use crate::memory::{MemoryIF, BGP, LCDC, LY, LYC, OBP0, OBP1, SCX, SCY, STAT, WX, WY};
+use crate::memory::{BGP, LCDC, LY, LYC, OBP0, OBP1, SCX, SCY, STAT, WX, WY};
 
 const VRAM: u16 = 0x8000;
 
@@ -181,8 +181,9 @@ impl Ppu {
 
     fn write_a_scanline(&mut self, io: &mut Io) {
         let lcdc = self.lcd_regs[0 /* LCDC - LCDC */];
-        //let obj = Obj::new(ly, memory);
-        //obj.write_obj_before_gb(ly, io);
+        let ly = self.line;
+        let obj = Obj::new(ly, &self.vram, &self.oam, &self.lcd_regs);
+        obj.write_obj_before_gb(ly, io);
         if lcdc & 0x01 != 0 {
             // BG & Window enable priority: ON
             self.write_bg(io);
@@ -200,7 +201,7 @@ impl Ppu {
             // BG & Window enable priority: OFF
             Ppu::write_blank(self.line, io); // both background and window bcome blank (white)
         }
-        //obj.write_obj_after_gb(ly, io);
+        obj.write_obj_after_gb(ly, io);
     }
 
     fn write_blank(ly: usize, io: &mut Io) {
@@ -302,38 +303,37 @@ struct ObjAttr {
 }
 
 impl Obj {
-    fn new(ly: usize, memory: &impl MemoryIF) -> Obj {
+    fn new(ly: usize, vram: &[u8], oam: &[u8], lcd_regs: &[u8]) -> Obj {
         let size = {
-            let lcdc = memory.read_byte(LCDC);
+            let lcdc = lcd_regs[0 /* LCDC - LCDC */];
             lcdc & 0x04 != 0
         };
-        let objs = Obj::set_objs(size, memory);
+        let objs = Obj::set_objs(size, oam);
         let objs = Obj::filter_objs(objs, ly, size);
         let mut objs = Obj::sort_objs(objs);
         objs.reverse();
 
         let mut line = [None; GFX_SIZE_X];
         for obj in objs {
-            Obj::write_a_obj(&mut line, obj, ly, size, memory);
+            Obj::write_a_obj(&mut line, obj, ly, size, vram, lcd_regs);
         }
         Obj { line }
     }
-    fn set_objs(size: bool, memory: &impl MemoryIF) -> Vec<ObjAttr> {
+    fn set_objs(size: bool, oam: &[u8]) -> Vec<ObjAttr> {
         let mut objs = Vec::new();
-        let base = 0xfe00;
         for i in 0..40 {
-            let addr = base + i * 4;
-            let y = memory.read_byte(addr);
-            let x = memory.read_byte(addr + 1);
+            let index = i * 4;
+            let y = oam[index];
+            let x = oam[index + 1];
             let tile_index = {
-                let idx = memory.read_byte(addr + 2);
+                let idx = oam[index + 2];
                 if size {
                     idx & 0xfe
                 } else {
                     idx
                 }
             };
-            let attr = memory.read_byte(addr + 3);
+            let attr = oam[index + 3];
             objs.push(ObjAttr {
                 y,
                 x,
@@ -368,32 +368,33 @@ impl Obj {
         obj: ObjAttr,
         ly: usize,
         size: bool,
-        memory: &impl MemoryIF,
+        vram: &[u8],
+        lcd_regs: &[u8],
     ) {
         let ly = ly as isize;
         // j & tile adder
         let y = obj.y as isize - 16;
-        let (j, tile_addr) = if size {
+        let (j, tile_data_index) = if size {
             // 8 * 16
             let dy = ly - y;
             if obj.attr & 0x30 != 0 {
                 // Y flip: ON
                 if dy < 8 {
-                    (7 - dy, 0x8000 + (obj.tile_index as u16 + 1) * 16)
+                    (7 - dy, (obj.tile_index as u16 + 1) * 16)
                 } else {
-                    (7 - (dy - 8), 0x8000 + obj.tile_index as u16 * 16)
+                    (7 - (dy - 8), obj.tile_index as u16 * 16)
                 }
             } else {
                 // Y flip: OFF
                 if dy < 8 {
-                    (dy, 0x8000 + obj.tile_index as u16 * 16)
+                    (dy, obj.tile_index as u16 * 16)
                 } else {
-                    (dy - 8, 0x8000 + (obj.tile_index as u16 + 1) * 16)
+                    (dy - 8, (obj.tile_index as u16 + 1) * 16)
                 }
             }
         } else {
             // 8 * 8
-            let addr = 0x8000 + obj.tile_index as u16 * 16;
+            let index = obj.tile_index as u16 * 16;
             let j = if obj.attr & 0x30 != 0 {
                 // Y flip: ON
                 7 - (ly - y)
@@ -401,8 +402,9 @@ impl Obj {
                 // Y flip: OFF
                 ly - y
             };
-            (j, addr)
+            (j, index)
         };
+        let tile_data_index = tile_data_index as usize;
         let bg_over_obj = obj.attr & 0x80 != 0;
         // i
         let x = obj.x as isize - 8;
@@ -420,13 +422,17 @@ impl Obj {
             let lx = lx as usize;
 
             // get color id
-            let color_id = todo!(); //get_a_color_id(i as u16, j as u16, tile_addr, memory);
+            let color_id = get_a_color_id(
+                i as u16,
+                j as u16,
+                &vram[tile_data_index..tile_data_index + 16],
+            );
 
             // color id -> color
             let palette_data = if obj.attr & 0x10 != 0 {
-                memory.read_byte(OBP1)
+                lcd_regs[(OBP1 - LCDC) as usize]
             } else {
-                memory.read_byte(OBP0)
+                lcd_regs[(OBP0 - LCDC) as usize]
             };
             let color = id2color(palette_data, color_id);
 
