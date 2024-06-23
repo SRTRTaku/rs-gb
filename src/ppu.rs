@@ -7,6 +7,7 @@ pub struct Ppu {
     mode: Mode,
     clock_m: usize,
     line: usize,
+    window_internal_line: Option<usize>,
     stat_int_prev: bool,
     set_blank: bool,
     vram: [u8; 0x2000], // Graphics RAM 8k byte
@@ -30,6 +31,7 @@ impl Ppu {
             mode: Mode::Mode2,
             clock_m: 0,
             line: 0,
+            window_internal_line: None,
             stat_int_prev: false,
             set_blank: false,
             vram: [0; 0x2000],
@@ -96,6 +98,12 @@ impl Ppu {
             match self.mode {
                 // OAM scan
                 Mode::Mode2 => {
+                    if self.clock_m == 1 {
+                        let wy = self.lcd_regs[(WY - LCDC) as usize] as usize;
+                        if self.line == wy {
+                            self.window_internal_line = Some(0);
+                        }
+                    }
                     if self.clock_m >= 20 {
                         self.clock_m = 0;
                         self.mode = Mode::Mode3;
@@ -136,6 +144,7 @@ impl Ppu {
                         if self.line > 153 {
                             self.mode = Mode::Mode2;
                             self.line = 0;
+                            self.window_internal_line = None;
                         }
                         self.lcd_regs[(LY - LCDC) as usize] = self.line as u8;
                     }
@@ -159,6 +168,7 @@ impl Ppu {
             self.mode = Mode::Mode2;
             self.clock_m = 0;
             self.line = 0;
+            self.window_internal_line = None;
             self.stat_int_prev = false;
             self.set_blank = false;
 
@@ -169,16 +179,22 @@ impl Ppu {
         Ok(())
     }
 
-    fn write_a_scanline(&self, io: &mut Io) {
+    fn write_a_scanline(&mut self, io: &mut Io) {
         let lcdc = self.lcd_regs[0 /* LCDC - LCDC */];
         //let obj = Obj::new(ly, memory);
         //obj.write_obj_before_gb(ly, io);
-        if lcdc & 0x01 == 0x01 {
+        if lcdc & 0x01 != 0 {
             // BG & Window enable priority: ON
             self.write_bg(io);
-            if lcdc & 0x20 == 0x20 {
-                // Window enable: ON
-                //self.write_window(io);
+
+            if let Some(win_line) = self.window_internal_line {
+                let wx = self.lcd_regs[(WX - LCDC) as usize] as usize;
+                if wx <= GFX_SIZE_X - 1 + 7 && lcdc & 0x20 != 0 {
+                    // wx - 7 <= GFX_SIZE_X - 1
+                    // Window enable: ON
+                    self.write_window(win_line, io);
+                    self.window_internal_line = Some(win_line + 1);
+                }
             }
         } else {
             // BG & Window enable priority: OFF
@@ -230,17 +246,11 @@ impl Ppu {
         }
     }
 
-    fn write_window(&self, io: &mut Io) {
+    fn write_window(&self, win_line: usize, io: &mut Io) {
         let lcdc = self.lcd_regs[0 /* LCDC - LCDC */];
         let tile_map_area_addr = if lcdc & 0x40 == 0x40 { 0x9c00 } else { 0x9800 };
-        let wy = self.lcd_regs[(WY - LCDC) as usize] as usize;
         let wx = self.lcd_regs[(WX - LCDC) as usize] as usize;
         let ly = self.line;
-
-        if ly < wy {
-            return;
-        }
-        let y = ly - wy;
 
         for lx in 0..GFX_SIZE_X {
             if lx + 7 < wx {
@@ -250,7 +260,7 @@ impl Ppu {
             let x = lx + 7 - wx; // x = lx - (wx - 7)
 
             // get tile map address
-            let y_tile = y / 8;
+            let y_tile = win_line / 8;
             let x_tile = x / 8;
             let tile_map_addr = tile_map_area_addr + (y_tile * 32 + x_tile) as u16;
             // get tile ID
@@ -264,7 +274,7 @@ impl Ppu {
                 0x8800 + (tile_id - 128) * 16
             };
             // get color ID
-            let j = (y % 8) as u16;
+            let j = (win_line % 8) as u16;
             let i = (x % 8) as u16;
             let tile_data_index = (tile_data_addr - VRAM) as usize;
             let color_id = get_a_color_id(i, j, &self.vram[tile_data_index..tile_data_index + 16]);
