@@ -150,7 +150,7 @@ impl Io {
                     Keycode::S => Some(GbKey::Game(Joypad::A)),
                     Keycode::A => Some(GbKey::Game(Joypad::B)),
                     Keycode::Return => Some(GbKey::Game(Joypad::Start)),
-                    Keycode::RShift => Some(GbKey::Game(Joypad::Select)),
+                    Keycode::Space => Some(GbKey::Game(Joypad::Select)),
                     _ => None,
                 },
                 _ => None,
@@ -164,16 +164,22 @@ impl Io {
                 }
             }
         }
-        let pressed = set_joypad_input(memory, &joypads);
+        //dbg!(&joypads);
+        let joyp = memory.read_byte(JOYP);
+        let (pressed, joyp_out) = set_joypad_input(joyp, &joypads);
+        memory.write_byte(JOYP, joyp_out);
+        if pressed {
+            let i_flag = memory.read_byte(IF);
+            memory.write_byte(IF, i_flag | 0x10);
+        }
         (None, pressed)
     }
 }
 
-fn set_joypad_input(memory: &mut impl MemoryIF, joypads: &[Joypad]) -> bool {
+fn set_joypad_input(joyp: u8, joypads: &[Joypad]) -> (bool, u8) {
     // joypad input
-    let joyp = memory.read_byte(JOYP);
-    let select_buttons = joyp & 0x20 == 0x00;
-    let select_dpad = joyp & 0x10 == 0x00;
+    let select_buttons = joyp & 0x20 == 0;
+    let select_dpad = joyp & 0x10 == 0;
     let mut joyp_out = (joyp & 0x30) + 0x0f;
     for joypad in joypads {
         if select_dpad {
@@ -195,14 +201,7 @@ fn set_joypad_input(memory: &mut impl MemoryIF, joypads: &[Joypad]) -> bool {
         }
     }
     // joypad interrupt
-    let pressed = if joyp_out & 0x0f != 0x0f {
-        let i_flag = memory.read_byte(IF);
-        memory.write_byte(IF, i_flag | 0x10);
-        true
-    } else {
-        false
-    };
+    let pressed = joyp_out & 0x0f != 0x0f;
 
-    memory.write_byte(JOYP, joyp_out);
-    pressed
+    (pressed, joyp_out)
 }

@@ -244,7 +244,7 @@ impl MemoryIF for Mmu {
                 self.ppu.write_oam(index, val);
             }
             // not usable
-            0xfea0..=0xfeff => panic!("not usable"),
+            0xfea0..=0xfeff => (), //panic!("not usable"),
             // I/O Register
             0xff00..=0xff7f => {
                 let val = if addr == DIV { 0 } else { val };
