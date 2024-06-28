@@ -1,4 +1,4 @@
-use crate::memory::{MemoryIF, DIV, IF};
+use crate::memory::{MemoryIF, DIV, DMA, IF};
 use crate::Io;
 use crate::Ppu;
 use std::error::Error;
@@ -23,6 +23,7 @@ pub struct Mmu {
     ioreg: [u8; 0x0080],               // I/O Registers
     zram: [u8; 0x0080],                // Zero-page Ram 128 byte
     pub ppu: Ppu,
+    oam_dma: Option<(usize, u16)>,
 }
 
 impl Mmu {
@@ -39,6 +40,7 @@ impl Mmu {
             ioreg: [0; 0x0080],
             zram: [0; 0x0080],
             ppu: Ppu::new(),
+            oam_dma: None,
         }
     }
 
@@ -108,6 +110,26 @@ impl Mmu {
         let mut i_flg = self.read_byte(IF);
         self.ppu.run(io, &mut i_flg)?;
         self.write_byte(IF, i_flg);
+
+        // dma
+        let dma = self.read_byte(DMA);
+        if dma != 0 {
+            let addr = (dma as u16) * 0x0100;
+            self.write_byte(DMA, 0);
+            self.oam_dma = Some((0, addr))
+        } else if let Some((clc, addr)) = self.oam_dma {
+            let clc = clc + 1;
+            if clc >= 160 {
+                for i in 0..0xa0 {
+                    let val = self.read_byte(addr + i);
+                    self.write_byte(0xfe00 + i, val);
+                }
+                self.oam_dma = None;
+            } else {
+                self.oam_dma = Some((clc, addr));
+            }
+        }
+
         Ok(())
     }
 }

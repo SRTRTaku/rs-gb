@@ -13,6 +13,7 @@ pub const SCY: u16 = 0xff42;
 pub const SCX: u16 = 0xff43;
 pub const LY: u16 = 0xff44;
 pub const LYC: u16 = 0xff45;
+pub const DMA: u16 = 0xff46;
 pub const BGP: u16 = 0xff47;
 pub const OBP0: u16 = 0xff48;
 pub const OBP1: u16 = 0xff49;
