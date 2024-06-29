@@ -173,7 +173,7 @@ impl Ppu {
             self.set_blank = false;
 
             for ly in 0..GFX_SIZE_Y {
-                Ppu::write_blank(ly, io);
+                Ppu::write_blank(ly, io, GfxColor::W);
             }
         }
         Ok(())
@@ -182,7 +182,15 @@ impl Ppu {
     fn write_a_scanline(&mut self, io: &mut Io) {
         let lcdc = self.lcd_regs[0 /* LCDC - LCDC */];
 
-        Ppu::write_blank(self.line, io); // both background and window bcome blank (white)
+        if lcdc & 0x01 != 0 {
+            let color_id = 0;
+            let palette_data = self.lcd_regs[(BGP - LCDC) as usize];
+            let color = id2color(palette_data, color_id);
+            Ppu::write_blank(self.line, io, color); // both background and window bcome blank (white)
+        } else {
+            Ppu::write_blank(self.line, io, GfxColor::W); // both background and window bcome blank (white)
+        }
+
         let ly = self.line;
         let obj = Obj::new(ly, &self.vram, &self.oam, &self.lcd_regs);
         if lcdc & 0x02 != 0 {
@@ -202,9 +210,6 @@ impl Ppu {
                     self.window_internal_line = Some(win_line + 1);
                 }
             }
-        } else {
-            // BG & Window enable priority: OFF
-            //Ppu::write_blank(self.line, io); // both background and window bcome blank (white)
         }
         if lcdc & 0x02 != 0 {
             // OBJ enable: ON
@@ -212,9 +217,9 @@ impl Ppu {
         }
     }
 
-    fn write_blank(ly: usize, io: &mut Io) {
+    fn write_blank(ly: usize, io: &mut Io, color: GfxColor) {
         for lx in 0..GFX_SIZE_X {
-            io.gfx[ly * GFX_SIZE_X + lx] = GfxColor::W;
+            io.gfx[ly * GFX_SIZE_X + lx] = color
         }
     }
 
@@ -249,10 +254,10 @@ impl Ppu {
             let tile_data_index = (tile_data_addr - VRAM) as usize;
             let color_id = get_a_color_id(i, j, &self.vram[tile_data_index..tile_data_index + 16]);
 
-            // set color for gfx array
-            let palette_data = self.lcd_regs[(BGP - LCDC) as usize];
-            let color = id2color(palette_data, color_id);
-            if color != GfxColor::W {
+            if color_id != 0 {
+                // set color for gfx array
+                let palette_data = self.lcd_regs[(BGP - LCDC) as usize];
+                let color = id2color(palette_data, color_id);
                 io.gfx[ly * GFX_SIZE_X + lx] = color;
             }
         }
@@ -291,10 +296,10 @@ impl Ppu {
             let tile_data_index = (tile_data_addr - VRAM) as usize;
             let color_id = get_a_color_id(i, j, &self.vram[tile_data_index..tile_data_index + 16]);
 
-            // set color for gfx array
-            let palette_data = self.lcd_regs[(BGP - LCDC) as usize];
-            let color = id2color(palette_data, color_id);
-            if color != GfxColor::W {
+            if color_id != 0 {
+                // set color for gfx array
+                let palette_data = self.lcd_regs[(BGP - LCDC) as usize];
+                let color = id2color(palette_data, color_id);
                 io.gfx[ly * GFX_SIZE_X + lx] = color;
             }
         }
@@ -442,16 +447,15 @@ impl Obj {
                 &vram[tile_data_index..tile_data_index + 16],
             );
 
-            // color id -> color
-            let palette_data = if obj.attr & 0x10 != 0 {
-                lcd_regs[(OBP1 - LCDC) as usize]
-            } else {
-                lcd_regs[(OBP0 - LCDC) as usize]
-            };
-            let color = id2color(palette_data, color_id);
-
             // set color to line[]
-            if color != GfxColor::W {
+            if color_id != 0 {
+                // color id -> color
+                let palette_data = if obj.attr & 0x10 != 0 {
+                    lcd_regs[(OBP1 - LCDC) as usize]
+                } else {
+                    lcd_regs[(OBP0 - LCDC) as usize]
+                };
+                let color = id2color(palette_data, color_id);
                 line[lx] = Some(PixelInfo { bg_over_obj, color });
             }
         }
