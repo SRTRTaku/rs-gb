@@ -1,6 +1,7 @@
 use crate::memory::{MemoryIF, DIV, DMA, IF};
 use crate::Io;
 use crate::Ppu;
+use crate::Timer;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
@@ -22,7 +23,8 @@ pub struct Mmu {
     wram: [u8; 0x2000],                // Working RAM 8k byte
     ioreg: [u8; 0x0080],               // I/O Registers
     zram: [u8; 0x0080],                // Zero-page Ram 128 byte
-    pub ppu: Ppu,
+    ppu: Ppu,
+    timer: Timer,
     oam_dma: Option<(usize, u16)>,
 }
 
@@ -40,6 +42,7 @@ impl Mmu {
             ioreg: [0; 0x0080],
             zram: [0; 0x0080],
             ppu: Ppu::new(),
+            timer: Timer::new(),
             oam_dma: None,
         }
     }
@@ -132,6 +135,12 @@ impl Mmu {
 
         Ok(())
     }
+    pub fn run_timer(&mut self, stop: bool) -> Result<(), String> {
+        let mut i_flg = self.read_byte(IF);
+        self.timer.run(&mut i_flg, stop)?;
+        self.write_byte(IF, i_flg);
+        Ok(())
+    }
 }
 
 impl MemoryIF for Mmu {
@@ -188,6 +197,10 @@ impl MemoryIF for Mmu {
             0xfea0..=0xfeff => panic!("not usable"),
             // I/O Register
             0xff00..=0xff7f => match addr {
+                0xff04..=0xff07 => {
+                    let index = (addr - 0xff04) as usize;
+                    self.timer.read_timer_reg(index)
+                }
                 0xff40..=0xff4b => {
                     let index = (addr - 0xff40) as usize;
                     self.ppu.read_lcd_reg(index)
@@ -268,19 +281,20 @@ impl MemoryIF for Mmu {
             // not usable
             0xfea0..=0xfeff => (), //panic!("not usable"),
             // I/O Register
-            0xff00..=0xff7f => {
-                let val = if addr == DIV { 0 } else { val };
-                match addr {
-                    0xff40..=0xff4b => {
-                        let index = (addr - 0xff40) as usize;
-                        self.ppu.write_lcd_reg(index, val);
-                    }
-                    _ => {
-                        let index = (addr - 0xff00) as usize;
-                        self.ioreg[index] = val;
-                    }
+            0xff00..=0xff7f => match addr {
+                0xff04..=0xff07 => {
+                    let index = (addr - 0xff04) as usize;
+                    self.timer.write_timer_reg(index, val);
                 }
-            }
+                0xff40..=0xff4b => {
+                    let index = (addr - 0xff40) as usize;
+                    self.ppu.write_lcd_reg(index, val);
+                }
+                _ => {
+                    let index = (addr - 0xff00) as usize;
+                    self.ioreg[index] = val;
+                }
+            },
             // Zero-page
             0xff80..=0xffff => {
                 let index = (addr - 0xff80) as usize;

@@ -35,7 +35,11 @@ impl Cpu {
             },
         }
     }
-    pub fn run(&mut self, memory: &mut impl MemoryIF, key_pressed: bool) -> Result<u16, String> {
+    pub fn run(
+        &mut self,
+        memory: &mut impl MemoryIF,
+        key_pressed: bool,
+    ) -> Result<(u16, bool), String> {
         self.clock_m += 1;
 
         if (self.clock_m >= self.m) || self.flags.halt || self.flags.stop {
@@ -95,7 +99,7 @@ impl Cpu {
                 self.flags.stop = false;
             }
         }
-        Ok(self.reg.pc)
+        Ok((self.reg.pc, self.flags.stop))
     }
 }
 

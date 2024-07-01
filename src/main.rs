@@ -68,9 +68,9 @@ fn main() {
             }
         }
 
-        let pc = cpu.run(&mut mmu, key_pressed).unwrap();
+        let (pc, stop) = cpu.run(&mut mmu, key_pressed).unwrap();
         mmu.run_ppu(&mut io).unwrap();
-        timer.run(&mut mmu).unwrap();
+        mmu.run_timer(stop).unwrap();
 
         if let Some(break_addr) = op_break_addr {
             if pc == break_addr {
