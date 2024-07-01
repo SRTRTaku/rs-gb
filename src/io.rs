@@ -1,22 +1,19 @@
 use crate::memory::{MemoryIF, IF, JOYP};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
-use sdl2::render::Texture;
 use sdl2::render::TextureCreator;
 use sdl2::render::WindowCanvas;
 use sdl2::video::WindowContext;
 use sdl2::EventPump;
-
-use std::time;
 
 const WHITE: (u8, u8, u8) = (0xe0, 0xf8, 0xd0);
 const LIGHT_GRAY: (u8, u8, u8) = (0x88, 0xc0, 0x70);
 const DARK_GRAY: (u8, u8, u8) = (0x34, 0x68, 0x56);
 const BLACK: (u8, u8, u8) = (0x08, 0x18, 0x20);
 const PIXEL_SIZE: usize = 3;
+const JOYPAD_NUM: usize = 8;
 pub const GFX_SIZE_Y: usize = 144;
 pub const GFX_SIZE_X: usize = 160;
 
@@ -46,13 +43,15 @@ pub enum Joypad {
 }
 pub enum GbKey {
     Emu(EmuControl),
-    Game(Joypad),
+    GameKeyDown(Joypad),
+    GameKeyUp(Joypad),
 }
 
 pub struct Io {
     canvas: WindowCanvas,
     event_pump: EventPump,
     texture_creator: TextureCreator<WindowContext>,
+    joypad_state: [bool; JOYPAD_NUM],
     pub gfx: [GfxColor; GFX_SIZE_X * GFX_SIZE_Y],
 }
 
@@ -84,6 +83,7 @@ impl Io {
             canvas: _canvas,
             event_pump: _event_pump,
             texture_creator: _texture_creator,
+            joypad_state: [false; JOYPAD_NUM],
             gfx: [GfxColor::W; GFX_SIZE_X * GFX_SIZE_Y],
         }
     }
@@ -132,7 +132,6 @@ impl Io {
         self.canvas.present();
     }
     pub fn get_key(&mut self, memory: &mut impl MemoryIF) -> (Option<EmuControl>, bool) {
-        let mut joypads = Vec::new();
         for event in self.event_pump.poll_iter() {
             let key = match event {
                 Event::Quit { .. } => Some(GbKey::Emu(EmuControl::Quit)),
@@ -143,14 +142,28 @@ impl Io {
                     Keycode::F5 => Some(GbKey::Emu(EmuControl::Run)),
                     Keycode::F7 => Some(GbKey::Emu(EmuControl::Step)),
                     Keycode::F10 => Some(GbKey::Emu(EmuControl::NextStep)),
-                    Keycode::Right => Some(GbKey::Game(Joypad::Right)),
-                    Keycode::Left => Some(GbKey::Game(Joypad::Left)),
-                    Keycode::Up => Some(GbKey::Game(Joypad::Up)),
-                    Keycode::Down => Some(GbKey::Game(Joypad::Down)),
-                    Keycode::S => Some(GbKey::Game(Joypad::A)),
-                    Keycode::A => Some(GbKey::Game(Joypad::B)),
-                    Keycode::Return => Some(GbKey::Game(Joypad::Start)),
-                    Keycode::Space => Some(GbKey::Game(Joypad::Select)),
+                    Keycode::Right => Some(GbKey::GameKeyDown(Joypad::Right)),
+                    Keycode::Left => Some(GbKey::GameKeyDown(Joypad::Left)),
+                    Keycode::Up => Some(GbKey::GameKeyDown(Joypad::Up)),
+                    Keycode::Down => Some(GbKey::GameKeyDown(Joypad::Down)),
+                    Keycode::S => Some(GbKey::GameKeyDown(Joypad::A)),
+                    Keycode::A => Some(GbKey::GameKeyDown(Joypad::B)),
+                    Keycode::Return => Some(GbKey::GameKeyDown(Joypad::Start)),
+                    Keycode::Space => Some(GbKey::GameKeyDown(Joypad::Select)),
+                    _ => None,
+                },
+                Event::KeyUp {
+                    keycode: Some(key_code),
+                    ..
+                } => match key_code {
+                    Keycode::Right => Some(GbKey::GameKeyUp(Joypad::Right)),
+                    Keycode::Left => Some(GbKey::GameKeyUp(Joypad::Left)),
+                    Keycode::Up => Some(GbKey::GameKeyUp(Joypad::Up)),
+                    Keycode::Down => Some(GbKey::GameKeyUp(Joypad::Down)),
+                    Keycode::S => Some(GbKey::GameKeyUp(Joypad::A)),
+                    Keycode::A => Some(GbKey::GameKeyUp(Joypad::B)),
+                    Keycode::Return => Some(GbKey::GameKeyUp(Joypad::Start)),
+                    Keycode::Space => Some(GbKey::GameKeyUp(Joypad::Select)),
                     _ => None,
                 },
                 _ => None,
@@ -158,15 +171,15 @@ impl Io {
             if let Some(gb_key) = key {
                 match gb_key {
                     GbKey::Emu(emu_control) => return (Some(emu_control), false),
-                    GbKey::Game(joypad) => {
-                        joypads.push(joypad);
-                    }
+                    GbKey::GameKeyDown(joypad) => self.joypad_state[joypad as usize] = true,
+                    GbKey::GameKeyUp(joypad) => self.joypad_state[joypad as usize] = false,
                 }
             }
         }
+        //self.set_joypad_state(joypads);
         //dbg!(&joypads);
         let joyp = memory.read_byte(JOYP);
-        let (pressed, joyp_out) = set_joypad_input(joyp, &joypads);
+        let (pressed, joyp_out) = self.set_joypad_input(joyp);
         memory.write_byte(JOYP, joyp_out);
         if pressed {
             let i_flag = memory.read_byte(IF);
@@ -174,34 +187,41 @@ impl Io {
         }
         (None, pressed)
     }
-}
 
-fn set_joypad_input(joyp: u8, joypads: &[Joypad]) -> (bool, u8) {
-    // joypad input
-    let select_buttons = joyp & 0x20 == 0;
-    let select_dpad = joyp & 0x10 == 0;
-    let mut joyp_out = (joyp & 0x30) + 0x0f;
-    for joypad in joypads {
+    fn set_joypad_input(&self, joyp: u8) -> (bool, u8) {
+        let select_buttons = joyp & 0x20 == 0;
+        let select_dpad = joyp & 0x10 == 0;
+        let mut joyp_out = (joyp & 0x30) + 0x0f;
         if select_dpad {
-            match joypad {
-                Joypad::Right => joyp_out &= !0x01,
-                Joypad::Left => joyp_out &= !0x02,
-                Joypad::Up => joyp_out &= !0x04,
-                Joypad::Down => joyp_out &= !0x08,
-                _ => (),
+            if self.joypad_state[Joypad::Right as usize] {
+                joyp_out &= !0x01
+            }
+            if self.joypad_state[Joypad::Left as usize] {
+                joyp_out &= !0x02
+            }
+            if self.joypad_state[Joypad::Up as usize] {
+                joyp_out &= !0x04
+            }
+            if self.joypad_state[Joypad::Down as usize] {
+                joyp_out &= !0x08
             }
         } else if select_buttons {
-            match joypad {
-                Joypad::A => joyp_out &= !0x01,
-                Joypad::B => joyp_out &= !0x02,
-                Joypad::Select => joyp_out &= !0x04,
-                Joypad::Start => joyp_out &= !0x08,
-                _ => (),
+            if self.joypad_state[Joypad::A as usize] {
+                joyp_out &= !0x01
+            }
+            if self.joypad_state[Joypad::B as usize] {
+                joyp_out &= !0x02
+            }
+            if self.joypad_state[Joypad::Select as usize] {
+                joyp_out &= !0x04
+            }
+            if self.joypad_state[Joypad::Start as usize] {
+                joyp_out &= !0x08
             }
         }
-    }
-    // joypad interrupt
-    let pressed = joyp_out & 0x0f != 0x0f;
+        // joypad interrupt
+        let pressed = joyp_out & 0x0f != 0x0f;
 
-    (pressed, joyp_out)
+        (pressed, joyp_out)
+    }
 }
